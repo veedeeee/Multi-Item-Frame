@@ -14,9 +14,10 @@
   "item.multiitemframe.glow_frame_2x2": "Glowing Multi Item Frame 2x2",
   "entity.multiitemframe.multi_item_frame": "Multi Item Frame",
   "entity.multiitemframe.glow_multi_item_frame": "Glowing Multi Item Frame",
-  "gui.multiitemframe.toggle_background": "Background",
-  "gui.multiitemframe.mode": "Mode",
-  "gui.multiitemframe.color": "Color",
+  "gui.multiitemframe.item_slot_tooltip": "Drag and Drop to choose item, Middle-click to erase",
+  "gui.multiitemframe.highlight_type_frame_tooltip": "Highlight type: Frame",
+  "gui.multiitemframe.highlight_type_fill_tooltip": "Hightlight type: Filled",
+  "gui.multiitemframe.color_tooltip": "Left-click to cycle color, Middle-click to erase",
   "gui.multiitemframe.config_card_saved": "Frame settings saved to card",
   "gui.multiitemframe.config_card_loaded": "Frame settings loaded from card",
   "gui.multiitemframe.config_card_invalid": "Card has no Multi Item Frame data"

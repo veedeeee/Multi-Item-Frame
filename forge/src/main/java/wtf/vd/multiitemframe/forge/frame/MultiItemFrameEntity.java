@@ -255,12 +255,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         if (!infiniteMaterials) {
             this.spawnAtLocation(this.getFrameItemStack());
         }
-        for (int i = 0; i < this.getContainerSize(); i++) {
-            ItemStack stack = this.getItem(i);
-            if (!stack.isEmpty() && !infiniteMaterials) {
-                this.spawnAtLocation(stack.copy());
-            }
-        }
+        // Displayed items are a selection, not real held stock (see MultiItemFrameMenu#clicked):
+        // nothing was ever consumed to show them, so nothing extra drops here when the frame breaks.
         this.clearContent();
         this.gameEvent(GameEvent.BLOCK_CHANGE, brokenEntity);
     }

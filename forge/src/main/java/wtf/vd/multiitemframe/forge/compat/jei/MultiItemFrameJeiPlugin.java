@@ -19,11 +19,13 @@ import wtf.vd.multiitemframe.forge.frame.MultiItemFrameScreen;
 /**
  * JEI integration (Ch.5).
  *
- * <p>Real item slots in {@link wtf.vd.multiitemframe.forge.frame.MultiItemFrameMenu}
- * already accept JEI's built-in "drag ingredient onto a slot" behavior with no
- * extra code (JEI supports that for any vanilla {@code Slot}). What JEI can't
- * do on its own is drop a dye onto our non-slot color-toggle buttons, so this
- * plugin adds a {@link IGhostIngredientHandler} for that one case.</p>
+ * <p>Frame item slots are ghost/display-only (they hold no real items), so JEI's
+ * built-in slot drag-and-drop (which inserts/extracts real stacks) does not apply
+ * to them. This plugin instead registers an {@link IGhostIngredientHandler} that
+ * targets each frame's item slot for any ingredient (setting the displayed item
+ * via {@link MultiItemFrameScreen#sendDirectItem}), and additionally targets each
+ * frame's color button when the dragged ingredient is a dye (setting the highlight
+ * color via {@link MultiItemFrameScreen#sendDirectColor}).</p>
  */
 @JeiPlugin
 public final class MultiItemFrameJeiPlugin implements IModPlugin {
@@ -38,41 +40,66 @@ public final class MultiItemFrameJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        registration.addGhostIngredientHandler(MultiItemFrameScreen.class, new DyeGhostIngredientHandler());
+        registration.addGhostIngredientHandler(MultiItemFrameScreen.class, new FrameGhostIngredientHandler());
     }
 
-    /** Lets a dye item be dragged from JEI's ingredient list directly onto a frame slot's color button. */
-    private static final class DyeGhostIngredientHandler implements IGhostIngredientHandler<MultiItemFrameScreen> {
+    /**
+     * Lets any item be dragged from JEI's ingredient list onto a frame's item slot (sets the
+     * displayed item), and lets dyes additionally be dropped onto a frame's color button (sets
+     * the highlight color).
+     */
+    private static final class FrameGhostIngredientHandler implements IGhostIngredientHandler<MultiItemFrameScreen> {
 
         @Override
         public <I> List<Target<I>> getTargetsTyped(MultiItemFrameScreen gui, ITypedIngredient<I> ingredient, boolean doStart) {
-            Optional<ItemStack> stack = ingredient.getItemStack();
-            if (stack.isEmpty() || !(stack.get().getItem() instanceof DyeItem dyeItem)) {
+            Optional<ItemStack> stackOptional = ingredient.getItemStack();
+            if (stackOptional.isEmpty()) {
                 return List.of();
             }
-            DyeColor color = dyeItem.getDyeColor();
+            ItemStack stack = stackOptional.get();
             List<Target<I>> targets = new ArrayList<>();
+
             for (int slot = 0; slot < gui.getSlotCount(); slot++) {
                 int slotIndex = slot;
-                Rect2i area = gui.getColorButtonArea(slot);
+                Rect2i itemArea = gui.getItemSlotArea(slot);
                 targets.add(new Target<>() {
                     @Override
                     public Rect2i getArea() {
-                        return area;
+                        return itemArea;
                     }
 
                     @Override
                     public void accept(I ingredient) {
-                        gui.sendDirectColor(slotIndex, color);
+                        gui.sendDirectItem(slotIndex, stack);
                     }
                 });
             }
+
+            if (stack.getItem() instanceof DyeItem dyeItem) {
+                DyeColor color = dyeItem.getDyeColor();
+                for (int slot = 0; slot < gui.getSlotCount(); slot++) {
+                    int slotIndex = slot;
+                    Rect2i colorArea = gui.getColorButtonArea(slot);
+                    targets.add(new Target<>() {
+                        @Override
+                        public Rect2i getArea() {
+                            return colorArea;
+                        }
+
+                        @Override
+                        public void accept(I ingredient) {
+                            gui.sendDirectColor(slotIndex, color);
+                        }
+                    });
+                }
+            }
+
             return targets;
         }
 
         @Override
         public void onComplete() {
-            // No cleanup needed: sendDirectColor already sent the button click on accept().
+            // No cleanup needed: sendDirectItem/sendDirectColor already sent the button click on accept().
         }
     }
 }

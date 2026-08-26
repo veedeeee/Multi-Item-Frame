@@ -1,5 +1,6 @@
 package wtf.vd.multiitemframe.forge.frame;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
@@ -7,17 +8,24 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import wtf.vd.multiitemframe.frame.FrameSize;
 import wtf.vd.multiitemframe.forge.registry.ModMenus;
 
 /**
  * GUI for setting the displayed items of a Multi Item Frame.
- * Frame slots are backed directly by the frame entity (synced automatically
- * via entity data); the rest of the grid is the usual player inventory so
- * items can be dragged in from there (or from JEI's ghost-slot drag for dyes
- * onto the color buttons; see the {@code jei} compat package and the
- * direct-color-set button ids below).
+ *
+ * <p>Frame slots are <b>display-only</b>: they don't hold a real item stock, they just
+ * remember which item to render (see {@link #clicked}). Left-clicking one with a carried
+ * item copies that item's type into the slot without touching the carried stack (nothing is
+ * ever actually consumed/deposited), and middle-clicking one (in any game mode; see
+ * {@code MultiItemFrameScreen#mouseClicked}) clears it back to "no item". The same applies to
+ * the highlight-color button (middle-click resets to "no color"/transparent). This mirrors
+ * how JEI's own ghost-ingredient drag targets work (see the {@code jei} compat package and the
+ * direct-set button ids below), and lets the same mechanism serve both mouse and JEI-drag input.</p>
  */
 public class MultiItemFrameMenu extends AbstractContainerMenu {
 
@@ -29,11 +37,27 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
      * highlight-color cycle button, matching {@code gui_sample.html}'s per-slot layout.
      */
     private static final int GRID_ORIGIN_X = 34;
-    private static final int GRID_ORIGIN_Y = 18;
+    private static final int GRID_ORIGIN_Y = 22;
     private static final int CELL_WIDTH = 54;
     private static final int CELL_HEIGHT = 18;
+
+    /*
+     * Menu-button id ranges (see #clickMenuButton). Kept contiguous and non-overlapping:
+     *   [0, MAX_SLOTS)                                  - cycle highlight mode for slot id
+     *   [MAX_SLOTS, DIRECT_COLOR_BASE)                   - cycle highlight color for slot (id - MAX_SLOTS)
+     *   [DIRECT_COLOR_BASE, DIRECT_ITEM_BASE)             - direct-set highlight color (JEI dye drag)
+     *   [DIRECT_ITEM_BASE, +inf)                          - direct-set displayed item (JEI item drag)
+     */
+    /** First button id of the highlight-color cycle range (package-private: also used by the screen). */
+    static final int COLOR_CYCLE_BASE = FrameSize.MAX_SLOTS;
+    /** One slot's worth of direct-color ids: 16 dye colors plus one "clear" value. */
+    static final int COLOR_ID_SPACE = DyeColor.values().length + 1;
     /** First button id of the direct-color-set range (see {@link #clickMenuButton}). */
-    public static final int DIRECT_COLOR_BASE = 1 + FrameSize.MAX_SLOTS * 2;
+    public static final int DIRECT_COLOR_BASE = COLOR_CYCLE_BASE + FrameSize.MAX_SLOTS;
+    /** Generous per-slot id space for direct-item-set, comfortably larger than any item registry. */
+    static final int ITEM_ID_SPACE = 1_000_000;
+    /** First button id of the direct-item-set range (see {@link #clickMenuButton}). */
+    public static final int DIRECT_ITEM_BASE = DIRECT_COLOR_BASE + FrameSize.MAX_SLOTS * COLOR_ID_SPACE;
 
     private final Container frameContainer;
     public final int slotCount;
@@ -83,20 +107,27 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
                 playerInventory.player.level());
     }
 
-    /** Middle-click (creative "clone") on a frame slot erases the displayed item instead of duplicating it. */
+    /**
+     * Frame slots are ghost/display-only (see class javadoc): a plain click copies the item
+     * currently on the cursor into the slot without consuming it, and never removes the cursor's
+     * item either way; middle-click always clears the slot back to "no item" regardless of game
+     * mode (the screen forwards middle-clicks here itself, since vanilla only reaches this via
+     * {@code ClickType.CLONE} in Creative - see {@code MultiItemFrameScreen#mouseClicked}).
+     */
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (clickType == ClickType.CLONE && slotId >= 0 && slotId < this.slotCount) {
-            this.frameContainer.setItem(slotId, ItemStack.EMPTY);
+        if (slotId >= 0 && slotId < this.slotCount) {
+            if (button == 2) {
+                this.frameContainer.setItem(slotId, ItemStack.EMPTY);
+            } else {
+                ItemStack carried = this.getCarried();
+                if (!carried.isEmpty()) {
+                    this.frameContainer.setItem(slotId, carried.copyWithCount(1));
+                }
+            }
             return;
         }
         super.clicked(slotId, button, clickType, player);
-    }
-
-    public void toggleBackground() {
-        if (this.frameContainer instanceof MultiItemFrameEntity frame) {
-            frame.toggleBackground();
-        }
     }
 
     public void cycleHighlightMode(int slot) {
@@ -134,32 +165,40 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         }
     }
 
+    /** Sets a slot's displayed item directly (used by the JEI item-drag ghost ingredient handler). */
+    private void setDisplayItemDirect(int slot, int itemRegistryId) {
+        if (slot < 0 || slot >= this.slotCount) {
+            return;
+        }
+        Item item = BuiltInRegistries.ITEM.byId(itemRegistryId);
+        this.frameContainer.setItem(slot, item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item));
+    }
+
     /**
      * Handles the mode/color toggle buttons rendered in the screen (vanilla's generic
-     * button-click mechanism, the same one used by e.g. the Loom/Beacon screens).
-     * Button id layout: {@code 0} = background toggle, {@code 1..4} = cycle highlight
-     * mode for slot {@code id-1}, {@code 5..8} = cycle highlight color for slot
-     * {@code id-5}, {@code 9..} = direct-set highlight color to
-     * {@code DyeColor.byId((id - DIRECT_COLOR_BASE) % 16)} for slot
-     * {@code (id - DIRECT_COLOR_BASE) / 16} (used by JEI's dye-drag ghost target).
+     * button-click mechanism, the same one used by e.g. the Loom/Beacon screens). See the id
+     * range layout documented next to the {@code *_BASE}/{@code *_SPACE} constants above.
      */
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (id == 0) {
-            this.toggleBackground();
+        if (id >= 0 && id < FrameSize.MAX_SLOTS) {
+            this.cycleHighlightMode(id);
             return true;
         }
-        if (id >= 1 && id <= FrameSize.MAX_SLOTS) {
-            this.cycleHighlightMode(id - 1);
+        if (id >= COLOR_CYCLE_BASE && id < DIRECT_COLOR_BASE) {
+            this.cycleHighlightColor(id - COLOR_CYCLE_BASE);
             return true;
         }
-        if (id >= 1 + FrameSize.MAX_SLOTS && id <= 1 + FrameSize.MAX_SLOTS * 2) {
-            this.cycleHighlightColor(id - 1 - FrameSize.MAX_SLOTS);
-            return true;
-        }
-        if (id >= DIRECT_COLOR_BASE && id < DIRECT_COLOR_BASE + FrameSize.MAX_SLOTS * 16) {
+        if (id >= DIRECT_COLOR_BASE && id < DIRECT_ITEM_BASE) {
             int offset = id - DIRECT_COLOR_BASE;
-            this.setHighlightColorDirect(offset / 16, net.minecraft.world.item.DyeColor.byId(offset % 16));
+            int slot = offset / COLOR_ID_SPACE;
+            int value = offset % COLOR_ID_SPACE;
+            this.setHighlightColorDirect(slot, value >= DyeColor.values().length ? null : DyeColor.byId(value));
+            return true;
+        }
+        if (id >= DIRECT_ITEM_BASE) {
+            int offset = id - DIRECT_ITEM_BASE;
+            this.setDisplayItemDirect(offset / ITEM_ID_SPACE, offset % ITEM_ID_SPACE);
             return true;
         }
         return false;
@@ -167,22 +206,26 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
+        if (index < this.slotCount) {
+            // Frame slots are ghost/display-only (see #clicked): there is no real item here to
+            // shift-click out into the player's inventory.
+            return ItemStack.EMPTY;
+        }
         Slot slot = this.slots.get(index);
         if (slot == null || !slot.hasItem()) {
             return ItemStack.EMPTY;
         }
         ItemStack original = slot.getItem();
         ItemStack moving = original.copy();
-        if (index < this.slotCount) {
-            // Moving out of a frame slot into the player inventory.
-            if (!this.moveItemStackTo(original, this.slotCount, this.slots.size(), true)) {
-                return ItemStack.EMPTY;
-            }
-        } else {
-            // Moving from the player inventory into the first free frame slot.
-            if (!this.moveItemStackTo(original, 0, this.slotCount, false)) {
-                return ItemStack.EMPTY;
-            }
+        // Shift-click only shuffles within the player's own inventory (hotbar <-> main storage);
+        // it never targets frame slots, since those aren't real storage.
+        int mainStart = this.slotCount;
+        int mainEnd = this.slots.size() - 9;
+        boolean movedFromHotbar = index >= mainEnd
+                ? this.moveItemStackTo(original, mainStart, mainEnd, false)
+                : this.moveItemStackTo(original, mainEnd, this.slots.size(), false);
+        if (!movedFromHotbar) {
+            return ItemStack.EMPTY;
         }
         if (original.isEmpty()) {
             slot.setByPlayer(ItemStack.EMPTY);

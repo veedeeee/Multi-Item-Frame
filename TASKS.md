@@ -40,6 +40,7 @@
 - [x] 設定コピー用の共通インターフェース（`copySettings()`/`pasteSettings(CompoundTag)`をforge/neoforge双方の`MultiItemFrameEntity`に同一シグネチャで実装。実際のMemory Card/Configuration Card連携はCh.5）
 - [x] ネットワーキング（GUIオープンは`ServerPlayer#openMenu`(NeoForge)/`NetworkHooks.openScreen`(Forge)のextra-data機構でエンティティIDを同期。ボタン操作はバニラの`clickMenuButton`/`handleInventoryButtonClick`で完結し、独自パケットは不要だった）
 - [x] グロー版（`glow_frame_*`）の実装（`GlowMultiItemFrameEntity`、専用サウンドのみ上書き。発光の視覚表現はCh.4のレンダラー/テクスチャで対応）
+- [x] **アイテム欄のゴースト化（実機テストでのバグ報告を受けて実施）**: フレームのアイテムスロットは実アイテムを保持せず、「表示するアイテムの種類」のみを記憶するゴーストスロットに変更（`MultiItemFrameMenu#clicked`/`quickMoveStack`を全面書き換え。左クリックでカーソルのアイテムを1個分だけ複製表示、カーソル側は変化なし。中クリックで表示解除、shift+クリックは無効化）。ドロップ時に実アイテムが消費される・個数情報が失われるという不具合、およびフレーム破壊時に見せかけのアイテムが実体としてドロップされる不具合を解消（`MultiItemFrameEntity#dropItem`からも表示アイテムのドロップ処理を削除）。JEI/インベントリからの直接設定は新設の`DIRECT_ITEM_BASE`ボタンID範囲（`MultiItemFrameMenu#setDisplayItemDirect`、`BuiltInRegistries.ITEM`の登録IDを`clickMenuButton`経由で送信）で対応。
 
 `.\gradlew.bat build --console=plain`でforge/neoforge双方のコンパイル・ビルド成功を確認済み。エンティティのレンダラーは未描画のプレースホルダー（`MultiItemFrameRenderer`、テクスチャ・モデルはCh.4）。
 
@@ -60,6 +61,9 @@
 - [x] アイテムモデル（インベントリ表示用、12種すべて `item/generated` 参照のプレースホルダーを配置。`common/src/main/resources/assets/multiitemframe/models/item/`）
 - [x] テクスチャ: プレースホルダーを配置済み（`common/src/main/resources/assets/multiitemframe/textures/`）。フレーム本体アイテムアイコン12種（`item/`）、インワールド用フレーム本体・グロー発光（`entity/frame.png`・`frame_glow.png`）、背景表示用（`entity/background.png`）、ハイライト用の枠・塗りつぶし各1枚（`entity/highlight_frame.png`・`highlight_fill.png`、いずれも白色で描画時にスロットごとの`DyeColor`へ着色する想定、16色分を個別に用意しない）。
 - [x] インワールド描画ロジック（`MultiItemFrameRenderer`、forge/neoforge双方）: 手動`VertexConsumer`でフラットな板ポリゴンを積層描画。`isBackgroundVisible()`ならスロットごとに`background.png`、`FrameSize`の外接矩形全体に`frame.png`/`frame_glow.png`（グロー版は`GlowMultiItemFrameEntity`判定で切替）、スロットごとに`HighlightMode`（`FRAME`/`FILL`）に応じた`highlight_frame.png`/`highlight_fill.png`を頂点カラーで`DyeColor`着色、最後に`ItemRenderer.renderStatic`でスロットのアイテムを描画。設置面の直交ベクトル（`getYRot()`から算出）に沿って板を向け、Z方向にわずかなオフセット（`WALL_OFFSET`/`LAYER_STEP`）でZファイティングを回避。NeoForge側は1.21.1で刷新された`VertexConsumer`API（`addVertex`/`setColor`/`setUv`/`setNormal`、`.endVertex()`廃止）に合わせて実装（Forge側は旧来の`.vertex(...).color(...).endVertex()`チェーン）。常時発光（光源化）は別課題として未着手（Ch.4当初の議論参照）。
+- [x] **設置面オフセットのバグ修正（実機テストでフレームが完全に不可視になる不具合の報告を受けて実施）**: `render()`内でY軸回転を適用した「後」にローカルZ軸で`-WALL_OFFSET`分平行移動していたため、設置面のブロックの内部にめり込む形で描画されていた（バニラの`ItemFrameRenderer`をデコンパイルして比較し判明）。バニラに倣い、`entity.getDirection().getStepX/Y/Z() * WALL_OFFSET`によるワールド空間での平行移動を回転より「前」に適用する方式に修正（forge/neoforge双方）。
+- [x] **GUI刷新（実機テストでのGUI重なり・操作不能の報告を受けて実施）**: `base.png`（256x256の枠+背景一体型テクスチャ）を`renderBg`でパネルサイズにストレッチ描画するよう変更（旧`generic_54.png`から差し替え）。プレイヤーインベントリとの重なりを解消するレイアウト調整（`GRID_ORIGIN_Y`を18→22に変更）。「Background」トグルボタンは用途不明のためGUIから削除（`isBackgroundVisible`データ自体は温存、GUI操作口のみ撤去）。`IconButton`にクリック中のみ`_pressing.png`を表示する状態管理、中クリックコールバック、状態依存の動的ツールチップ（`Tooltip.create`を毎フレーム更新）を追加。アイテムスロットのツールチップ「Drag and Drop to choose item, Middle-click to erase」、ハイライトモードボタンのツールチップ「Highlight type: Frame」/「Hightlight type: Filled」（ユーザー指定の原文ママ、誤字含む）を追加。アイテムスロット・色ボタンとも中クリックで初期化（未設定/透明）に対応するため、`Screen#mouseClicked`をオーバーライドしてバニラのクリエイティブ限定ゲートを回避し、中クリックを`handleInventoryMouseClick`経由で常に転送するよう変更。
+- [x] JEI連携を実アイテムスロット向けに拡張（Ch.5の染料専用ゴーストハンドラを一般化し、任意アイテムのドラッグ&ドロップでアイテムスロットへの表示アイテム設定にも対応。詳細はCh.5参照）。
 - [x] 言語ファイル（`en_us.json`）は既存のforge/neoforge双方の`assets/multiitemframe/lang/en_us.json`に集約（Ch.2時点で作成済みだったため、Ch.5で追加した`config_card_*`キーの翻訳文言を今回追記）。`ja_jp.json`は未着手（必要になれば別途）。
 - [x] レシピJSON・タグ定義はCh.3で完了済み（ルートテーブルは対象外、右クリックで取得するため不要）。
 - 生成用ツール: `tools/generate_placeholder_assets.py`（再実行で全プレースホルダーを再生成可能。本物のアートに差し替える際は、上記の着色前提テクスチャの仕組みを踏襲すること）。
@@ -80,7 +84,7 @@ AE2/Mekanism連携の実装メモ:
 
 JEI連携の実装メモ:
 - `mezz.jei:jei-*-forge-api`/`jei-*-neoforge-api`はローダー固有の薄いシムのみを含み、`IModPlugin`/`IGhostIngredientHandler`等の本体APIは別アーティファクト`mezz.jei:jei-*-common-api`にある。両`build.gradle`に`compileOnly`を追加した。
-- フレームのアイテムスロットは通常の`Slot`なので、JEI標準のドラッグ&ドロップ（インベントリ/JEI一覧からスロットへ）は追加コード無しでそのまま機能する。ハイライト色トグルボタンは`Slot`ではない独自ウィジェットのため、そこへの染料ドラッグのみ`IGhostIngredientHandler<MultiItemFrameScreen>`（`compat.jei.MultiItemFrameJeiPlugin`、`@JeiPlugin`で自動検出）で対応し、ドロップ時に色を直接設定する新しいメニューボタンID範囲（`MultiItemFrameMenu.DIRECT_COLOR_BASE`以降）を追加した。
+- アイテムスロットはゴーストスロット化（Ch.2参照）に伴い実アイテムを保持しないため、JEI標準のスロットドラッグ&ドロップは対象外。代わりに`IGhostIngredientHandler<MultiItemFrameScreen>`（`compat.jei.MultiItemFrameJeiPlugin`、`@JeiPlugin`で自動検出）を汎用アイテム対応に拡張し、任意のアイテムをアイテムスロットへドラッグすると表示アイテムを直接設定（`DIRECT_ITEM_BASE`ボタン範囲）、染料の場合はさらに色トグルボタンへのドラッグにも対応（`DIRECT_COLOR_BASE`ボタン範囲）するようにした。
 
 ## 6. ドキュメント・リリース関連
 

@@ -55,8 +55,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
             MultiBufferSource buffer, int packedLight) {
         super.render(entity, yaw, partialTicks, poseStack, buffer, packedLight);
         poseStack.pushPose();
+        // Offset away from the mounting block face BEFORE rotating (world-space, matching vanilla
+        // ItemFrameRenderer's own direction.getStepX/Z() * 0.46875 offset) - doing this after the
+        // Y rotation instead (as a local +/-Z translate) picks the wrong sign depending on facing
+        // and ends up rendering the frame flush inside the solid mounting block, making it
+        // effectively invisible.
+        net.minecraft.core.Direction direction = entity.getDirection();
+        poseStack.translate(direction.getStepX() * WALL_OFFSET, direction.getStepY() * WALL_OFFSET,
+                direction.getStepZ() * WALL_OFFSET);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - entity.getYRot()));
-        poseStack.translate(0.0, 0.0, -WALL_OFFSET);
 
         FrameSize size = entity.getFrameSize();
         float halfWidth = size.columns() / 2.0F;
