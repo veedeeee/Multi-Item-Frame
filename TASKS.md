@@ -58,7 +58,8 @@
 
 - [x] ~~ブロックステート・ブロックモデル~~ — Ch.2でエンティティとして実装したため対象外（ブロックではない）
 - [x] アイテムモデル（インベントリ表示用、12種すべて `item/generated` 参照のプレースホルダーを配置。`common/src/main/resources/assets/multiitemframe/models/item/`）
-- [x] テクスチャ: プレースホルダーを配置済み（`common/src/main/resources/assets/multiitemframe/textures/`）。フレーム本体アイテムアイコン12種（`item/`）、インワールド用フレーム本体・グロー発光（`entity/frame.png`・`frame_glow.png`）、背景表示用（`entity/background.png`）、ハイライト用の枠・塗りつぶし各1枚（`entity/highlight_frame.png`・`highlight_fill.png`、いずれも白色で描画時にスロットごとの`DyeColor`へ着色する想定、16色分を個別に用意しない）。実物の描画ロジック（`MultiItemFrameRenderer`）は未実装のまま、Ch.4の残タスク。
+- [x] テクスチャ: プレースホルダーを配置済み（`common/src/main/resources/assets/multiitemframe/textures/`）。フレーム本体アイテムアイコン12種（`item/`）、インワールド用フレーム本体・グロー発光（`entity/frame.png`・`frame_glow.png`）、背景表示用（`entity/background.png`）、ハイライト用の枠・塗りつぶし各1枚（`entity/highlight_frame.png`・`highlight_fill.png`、いずれも白色で描画時にスロットごとの`DyeColor`へ着色する想定、16色分を個別に用意しない）。
+- [x] インワールド描画ロジック（`MultiItemFrameRenderer`、forge/neoforge双方）: 手動`VertexConsumer`でフラットな板ポリゴンを積層描画。`isBackgroundVisible()`ならスロットごとに`background.png`、`FrameSize`の外接矩形全体に`frame.png`/`frame_glow.png`（グロー版は`GlowMultiItemFrameEntity`判定で切替）、スロットごとに`HighlightMode`（`FRAME`/`FILL`）に応じた`highlight_frame.png`/`highlight_fill.png`を頂点カラーで`DyeColor`着色、最後に`ItemRenderer.renderStatic`でスロットのアイテムを描画。設置面の直交ベクトル（`getYRot()`から算出）に沿って板を向け、Z方向にわずかなオフセット（`WALL_OFFSET`/`LAYER_STEP`）でZファイティングを回避。NeoForge側は1.21.1で刷新された`VertexConsumer`API（`addVertex`/`setColor`/`setUv`/`setNormal`、`.endVertex()`廃止）に合わせて実装（Forge側は旧来の`.vertex(...).color(...).endVertex()`チェーン）。常時発光（光源化）は別課題として未着手（Ch.4当初の議論参照）。
 - [x] 言語ファイル（`en_us.json`）は既存のforge/neoforge双方の`assets/multiitemframe/lang/en_us.json`に集約（Ch.2時点で作成済みだったため、Ch.5で追加した`config_card_*`キーの翻訳文言を今回追記）。`ja_jp.json`は未着手（必要になれば別途）。
 - [x] レシピJSON・タグ定義はCh.3で完了済み（ルートテーブルは対象外、右クリックで取得するため不要）。
 - 生成用ツール: `tools/generate_placeholder_assets.py`（再実行で全プレースホルダーを再生成可能。本物のアートに差し替える際は、上記の着色前提テクスチャの仕組みを踏襲すること）。
