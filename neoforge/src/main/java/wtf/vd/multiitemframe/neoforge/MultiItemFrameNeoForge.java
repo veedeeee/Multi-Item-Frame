@@ -9,6 +9,7 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import wtf.vd.multiitemframe.MultiItemFrame;
 import wtf.vd.multiitemframe.neoforge.frame.MultiItemFrameRenderer;
 import wtf.vd.multiitemframe.neoforge.frame.MultiItemFrameScreen;
+import wtf.vd.multiitemframe.neoforge.registry.ModCreativeTabs;
 import wtf.vd.multiitemframe.neoforge.registry.ModEntities;
 import wtf.vd.multiitemframe.neoforge.registry.ModItems;
 import wtf.vd.multiitemframe.neoforge.registry.ModMenus;
@@ -22,6 +23,7 @@ public class MultiItemFrameNeoForge {
         ModEntities.register(modEventBus);
         ModItems.register(modEventBus);
         ModMenus.register(modEventBus);
+        ModCreativeTabs.register(modEventBus);
 
         modEventBus.addListener(this::onClientSetup);
         modEventBus.addListener(this::onRegisterRenderers);

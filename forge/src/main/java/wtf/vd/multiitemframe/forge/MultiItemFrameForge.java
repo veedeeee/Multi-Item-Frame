@@ -9,6 +9,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import wtf.vd.multiitemframe.MultiItemFrame;
 import wtf.vd.multiitemframe.forge.frame.MultiItemFrameRenderer;
 import wtf.vd.multiitemframe.forge.frame.MultiItemFrameScreen;
+import wtf.vd.multiitemframe.forge.registry.ModCreativeTabs;
 import wtf.vd.multiitemframe.forge.registry.ModEntities;
 import wtf.vd.multiitemframe.forge.registry.ModItems;
 import wtf.vd.multiitemframe.forge.registry.ModMenus;
@@ -23,6 +24,7 @@ public class MultiItemFrameForge {
         ModEntities.register(modEventBus);
         ModItems.register(modEventBus);
         ModMenus.register(modEventBus);
+        ModCreativeTabs.register(modEventBus);
 
         modEventBus.addListener(this::onClientSetup);
         modEventBus.addListener(this::onRegisterRenderers);

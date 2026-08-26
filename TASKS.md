@@ -30,6 +30,7 @@
 - [x] Item Frame拡張エンティティの基本設計（`HangingEntity`を直接継承、`common`に`FrameSize`/`HighlightMode` enumを配置）
 - [x] サイズバリエーションの実装: `1x1` / `1x2` / `2x1` / `1and2` / `2and1` / `2x2`（`FrameSize` enum、スロット数・グリッド位置を保持）
 - [x] 各サイズごとのアイテム・エンティティ登録、およびNBT保存/復元（forge/neoforgeそれぞれに`MultiItemFrameEntity`実装。エンティティ種別は`multi_item_frame`/`glow_multi_item_frame`の2つのみで、サイズは同期エンティティデータとして保持）
+- [x] 専用クリエイティブタブ（`ModCreativeTabs`、forge/neoforge双方）にアイテム12種を列挙。未登録だとクリエイティブインベントリにもJEIにも一切表示されない不具合があり、テスト環境での検証で発覚したため追加。
 - [x] 背景の表示/透過切り替え機能（`isBackgroundVisible`/`toggleBackground`。実際のテクスチャ切り替えはCh.4）
 - [x] アイテム設置ロジック: インベントリからの設置（GUIの`quickMoveStack`、中クリック消去含む）
 - [x] JEIからのドラッグ設置（実アイテムスロットへのドラッグはJEI標準機能でそのまま動作。Ch.5のJEI連携で染料ドラッグ用のゴーストターゲットのみ追加実装）
