@@ -22,9 +22,9 @@ public final class ModItems {
     static {
         for (FrameSize size : FrameSize.values()) {
             FRAME_ITEMS.put(size, ITEMS.register(MultiItemFrame.frameItemId(size),
-                    () -> new MultiItemFrameItem(ModEntities.MULTI_ITEM_FRAME.get(), size, false, new Item.Properties())));
+                    () -> new MultiItemFrameItem(ModEntities.MULTI_ITEM_FRAME, size, false, new Item.Properties())));
             GLOW_FRAME_ITEMS.put(size, ITEMS.register(MultiItemFrame.glowFrameItemId(size),
-                    () -> new MultiItemFrameItem(ModEntities.GLOW_MULTI_ITEM_FRAME.get(), size, true, new Item.Properties())));
+                    () -> new MultiItemFrameItem(ModEntities.GLOW_MULTI_ITEM_FRAME, size, true, new Item.Properties())));
         }
     }
 
