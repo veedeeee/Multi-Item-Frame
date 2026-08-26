@@ -25,16 +25,22 @@
 
 ## 2. コアロジック（`common`モジュール）
 
-- [ ] Item Frame拡張ブロック/ブロックエンティティの基本設計（バニラ`item_frame`の挙動を踏襲しつつ複数スロット対応）
-- [ ] サイズバリエーションの実装: `1x1` / `1x2`（縦2連結） / `2x1`（横2連結） / `1and2`（上1・下2） / `2and1`（上2・下1） / `2x2`
-- [ ] 各サイズごとのブロック・アイテム・ブロックエンティティ・NBT/データコンポーネントの登録
-- [ ] 背景の表示/透過切り替え機能
-- [ ] アイテム設置ロジック: インベントリからの設置、JEIからのドラッグ設置
-- [ ] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去
-- [ ] ハイライトカラー設定機能: モードボタン（無し/フレーム/背景塗りつぶし）のトグル、色トグルボタン、インベントリ/JEIからの染料ドラッグ
-- [ ] 設定コピー用の共通インターフェース（Memory Card / Configuration Cardの両方から呼べる形で設計）
-- [ ] ネットワーキング（クライアント⇔サーバー間のGUI操作・状態同期パケット）
-- [ ] グロー版（`glow_frame_*`）の実装（発光ロジック、非グロー→グロー変換）
+> **設計変更（Ch.2着手時に判明）**: `common`は2ローダー分としてソースが2回コンパイルされるが、Forge 1.20.1とNeoForge 1.21.1はMC 1.20.5の Data Components導入により`ItemFrame`/`HangingEntity`系のバニラAPIが大きく乖離しており（`HangingEntity`の親クラス、`defineSynchedData`のシグネチャ、`ItemStack`のNBT保存/復元、`getAddEntityPacket`等）、フレーム本体のEntity/Item/GUIクラスは`common`に置けない。よって`common`には`FrameSize`/`HighlightMode`等のMC非依存な純粋データのみを置き、Entity/Item/Menu/Screen/レンダラー/登録処理はforge・neoforge双方に個別実装する方針とした（ユーザー承認済み）。
+
+- [x] Item Frame拡張エンティティの基本設計（`HangingEntity`を直接継承、`common`に`FrameSize`/`HighlightMode` enumを配置）
+- [x] サイズバリエーションの実装: `1x1` / `1x2` / `2x1` / `1and2` / `2and1` / `2x2`（`FrameSize` enum、スロット数・グリッド位置を保持）
+- [x] 各サイズごとのアイテム・エンティティ登録、およびNBT保存/復元（forge/neoforgeそれぞれに`MultiItemFrameEntity`実装。エンティティ種別は`multi_item_frame`/`glow_multi_item_frame`の2つのみで、サイズは同期エンティティデータとして保持）
+- [x] 背景の表示/透過切り替え機能（`isBackgroundVisible`/`toggleBackground`。実際のテクスチャ切り替えはCh.4）
+- [x] アイテム設置ロジック: インベントリからの設置（GUIの`quickMoveStack`、中クリック消去含む）
+- [ ] JEIからのドラッグ設置（Ch.5のJEI連携で対応）
+- [x] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去（`MultiItemFrameMenu`/`MultiItemFrameScreen`。背景は暫定的にバニラの`generic_54`テクスチャを流用、専用アセットはCh.4）
+- [x] ハイライトカラー設定機能: モードボタンのトグル、色トグルボタン（バニラの`clickMenuButton`機構を利用、追加のネットワーキング実装は不要だった）
+- [ ] インベントリ/JEIからの染料ドラッグでの色設定（現状は色トグルボタンのみ対応。ドラッグ操作はCh.5のJEI連携と合わせて検討）
+- [x] 設定コピー用の共通インターフェース（`copySettings()`/`pasteSettings(CompoundTag)`をforge/neoforge双方の`MultiItemFrameEntity`に同一シグネチャで実装。実際のMemory Card/Configuration Card連携はCh.5）
+- [x] ネットワーキング（GUIオープンは`ServerPlayer#openMenu`(NeoForge)/`NetworkHooks.openScreen`(Forge)のextra-data機構でエンティティIDを同期。ボタン操作はバニラの`clickMenuButton`/`handleInventoryButtonClick`で完結し、独自パケットは不要だった）
+- [x] グロー版（`glow_frame_*`）の実装（`GlowMultiItemFrameEntity`、専用サウンドのみ上書き。発光の視覚表現はCh.4のレンダラー/テクスチャで対応）
+
+`.\gradlew.bat build --console=plain`でforge/neoforge双方のコンパイル・ビルド成功を確認済み。エンティティのレンダラーは未描画のプレースホルダー（`MultiItemFrameRenderer`、テクスチャ・モデルはCh.4）。
 
 ## 3. クラフトレシピ
 
