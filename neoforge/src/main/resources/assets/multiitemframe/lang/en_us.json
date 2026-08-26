@@ -1,0 +1,14 @@
+{
+  "item.multiitemframe.frame_1x1": "Multi Item Frame 1x1",
+  "item.multiitemframe.frame_1x2": "Multi Item Frame 1x2",
+  "item.multiitemframe.frame_2x1": "Multi Item Frame 2x1",
+  "item.multiitemframe.frame_1and2": "Multi Item Frame 1,2",
+  "item.multiitemframe.frame_2and1": "Multi Item Frame 2,1",
+  "item.multiitemframe.frame_2x2": "Multi Item Frame 2x2",
+  "item.multiitemframe.glow_frame_1x1": "Glowing Multi Item Frame 1x1",
+  "item.multiitemframe.glow_frame_1x2": "Glowing Multi Item Frame 1x2",
+  "item.multiitemframe.glow_frame_2x1": "Glowing Multi Item Frame 2x1",
+  "item.multiitemframe.glow_frame_1and2": "Glowing Multi Item Frame 1,2",
+  "item.multiitemframe.glow_frame_2and1": "Glowing Multi Item Frame 2,1",
+  "item.multiitemframe.glow_frame_2x2": "Glowing Multi Item Frame 2x2"
+}

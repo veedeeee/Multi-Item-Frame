@@ -1,0 +1,89 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.minecraftforge.gradle' version '[6.0.24,6.2)'
+}
+
+def forgeMinecraftVersion = '1.20.1'
+def forgeVersion = '47.4.10'
+def forgeLoaderVersionRange = '[47,)'
+def forgeMinecraftVersionRange = '[1.20.1, 1.21)'
+
+ext.minecraft_version = forgeMinecraftVersion
+ext.minecraft_version_range = forgeMinecraftVersionRange
+ext.forge_version = forgeVersion
+ext.forge_loader_version_range = forgeLoaderVersionRange
+
+base {
+    archivesName = "${archives_name}-forge-${forgeMinecraftVersion}"
+}
+
+minecraft {
+    mappings channel: 'official', version: forgeMinecraftVersion
+
+    copyIdeResources = true //Calls processResources when in dev
+
+    reobf = true // Forge 1.20.1 runtime expects SRG-style names for many Forge mods
+
+    // Automatically enable forge AccessTransformers if the file exists
+    // This location is hardcoded in Forge and can not be changed.
+    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformer = at
+    }
+
+    runs {
+        client {
+            workingDirectory file('runs/client')
+            ideaModule "${rootProject.name}.${project.name}.main"
+            taskName 'Client'
+            mods {
+                modClientRun {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory file('runs/server')
+            ideaModule "${rootProject.name}.${project.name}.main"
+            taskName 'Server'
+            mods {
+                modServerRun {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory file('runs/data')
+            ideaModule "${rootProject.name}.${project.name}.main"
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            taskName 'Data'
+            mods {
+                modDataRun {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources.srcDir 'src/generated/resources'
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${forgeMinecraftVersion}-${forgeVersion}"
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            fg.component(it)
+        }
+    }
+}
+
+sourceSets.each {
+    def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
+    it.output.resourcesDir = dir
+    it.java.destinationDirectory = dir
+}

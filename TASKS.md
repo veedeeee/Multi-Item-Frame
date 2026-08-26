@@ -12,14 +12,16 @@
 
 ## 1. プロジェクト基盤（マルチローダー構成）
 
-- [ ] Gradleマルチモジュール構成を新規作成: `common` / `forge` / `neoforge`
-- [ ] `settings.gradle` / `build.gradle`（ルート・各モジュール）を作成し、Forge 1.20.1 / NeoForge 1.21.1向けのビルド設定を行う
-- [ ] `gradle.properties`を作成し、MOD ID・バージョン・対象MC/ローダーバージョン等を定義（`release.yml`が`version=`を参照する前提）
-- [ ] Gradle Wrapper（`gradlew` / `gradlew.bat` / `gradle/wrapper/*`）を追加
-- [ ] `.gitignore`を作成（`build/`, `.gradle/`, `run/`等）
-- [ ] MOD ID（例: `multiitemframe`）とMOD名・説明・作者等のメタデータを確定
-- [ ] Forge用`mods.toml`、NeoForge用`neoforge.mods.toml`を作成
-- [ ] アイコン画像等のMODメタデータアセットを準備
+- [x] Gradleマルチモジュール構成を新規作成: `common` / `forge` / `neoforge`
+- [x] `settings.gradle` / `build.gradle`（ルート・各モジュール）を作成し、Forge 1.20.1 / NeoForge 1.21.1向けのビルド設定を行う
+- [x] `gradle.properties`を作成し、MOD ID・バージョン・対象MC/ローダーバージョン等を定義（`release.yml`が`version=`を参照する前提）
+- [x] Gradle Wrapper（`gradlew` / `gradlew.bat` / `gradle/wrapper/*`）を追加
+- [x] `.gitignore`を作成（`build/`, `.gradle/`, `run/`等）
+- [x] MOD ID（`multiitemframe`）とMOD名・説明・作者等のメタデータを確定（group=`wtf.vd`, mod_id=`multiitemframe`, mod_author=`Vee Dee`, license=`LGPL-3.0`）
+- [x] Forge用`mods.toml`、NeoForge用`neoforge.mods.toml`を作成
+- [x] アイコン画像等のMODメタデータアセットを準備（仮のプレースホルダー画像を配置。正式なアイコンは別途デザインが必要）
+
+`.\gradlew.bat build --console=plain`でビルド成功を確認済み（`multiitemframe-forge-1.20.1-1.0.0.jar` / `multiitemframe-neoforge-1.21.1-1.0.0.jar`を生成、`build.yml`/`release.yml`が期待するファイル名と一致）。`LICENSE`（LGPL-3.0）も追加済み（ビルドタスクが参照するため前倒しで作成）。
 
 ## 2. コアロジック（`common`モジュール）
 
