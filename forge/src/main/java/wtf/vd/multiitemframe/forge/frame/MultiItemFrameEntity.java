@@ -82,7 +82,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         this.getEntityData().define(DATA_BACKGROUND, true);
         for (int i = 0; i < FrameSize.MAX_SLOTS; i++) {
             this.getEntityData().define(DATA_ITEMS[i], ItemStack.EMPTY);
-            this.getEntityData().define(DATA_MODES[i], (byte) HighlightMode.NONE.ordinal());
+            this.getEntityData().define(DATA_MODES[i], (byte) HighlightMode.FRAME.ordinal());
             this.getEntityData().define(DATA_COLORS[i], (byte) -1);
         }
     }

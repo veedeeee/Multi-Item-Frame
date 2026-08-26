@@ -87,9 +87,9 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
             float top = halfHeight - gridPos[1];
 
             HighlightMode mode = entity.getHighlightMode(slot);
-            if (mode != HighlightMode.NONE) {
-                DyeColor color = entity.getHighlightColor(slot);
-                int rgb = color != null ? color.getFireworkColor() : 0xFFFFFF;
+            DyeColor color = entity.getHighlightColor(slot);
+            if (color != null) {
+                int rgb = color.getFireworkColor();
                 ResourceLocation overlay = mode == HighlightMode.FRAME
                         ? HIGHLIGHT_FRAME_TEXTURE
                         : HIGHLIGHT_FILL_TEXTURE;

@@ -35,7 +35,7 @@
 - [x] アイテム設置ロジック: インベントリからの設置（GUIの`quickMoveStack`、中クリック消去含む）
 - [x] JEIからのドラッグ設置（実アイテムスロットへのドラッグはJEI標準機能でそのまま動作。Ch.5のJEI連携で染料ドラッグ用のゴーストターゲットのみ追加実装）
 - [x] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去（`MultiItemFrameMenu`/`MultiItemFrameScreen`。背景は暫定的にバニラの`generic_54`テクスチャを流用、専用アセットはCh.4）
-- [x] ハイライトカラー設定機能: モードボタンのトグル、色トグルボタン（バニラの`clickMenuButton`機構を利用、追加のネットワーキング実装は不要だった）
+- [x] ハイライトカラー設定機能: モードボタンのトグル、色トグルボタン（バニラの`clickMenuButton`機構を利用、追加のネットワーキング実装は不要だった）。`gui_sample.html`（モックアップ、`.gitignore`対象外の作業用ファイル）でのUI方針確認を受け、`HighlightMode`を`NONE/FRAME/FILL`の3状態から`FRAME/FILL`の2状態トグルに変更し、「ハイライトなし」は色を未設定（transparent）にすることで表現するよう仕様変更。GUIレイアウトも、各スロットのアイテム欄＋モードボタン＋色ボタンを横一列の「行」としてまとめ、`FrameSize`が1列/1行しかない場合はその行を2列/2行分の領域内で中央寄せする方式（`FrameSize#columnSpan()`/`rowSpan()`）に刷新し、全サイズで同じ大きさ・形のパネルになるよう統一（既存の重なり・はみ出し問題を解消）。モード/色ボタンはテキストボタンから、`common/.../assets/multiitemframe/gui/`に配置済みの16x16アイコン（ハイライトモード2種、色17種＝透明+ダイ16色、ボタン背景2種）を使う独自`IconButton`ウィジェット（forge/neoforge双方）に置き換え。
 - [x] インベントリ/JEIからの染料ドラッグでの色設定（色トグルボタンに加え、JEIの`IGhostIngredientHandler`で染料をボタンへ直接ドラッグ&ドロップ可能。インベントリからのドラッグは通常のドラッグ&ドロップに対応する専用UIが無いため対象外、ボタンクリックでの巡回設定を継続採用）
 - [x] 設定コピー用の共通インターフェース（`copySettings()`/`pasteSettings(CompoundTag)`をforge/neoforge双方の`MultiItemFrameEntity`に同一シグネチャで実装。実際のMemory Card/Configuration Card連携はCh.5）
 - [x] ネットワーキング（GUIオープンは`ServerPlayer#openMenu`(NeoForge)/`NetworkHooks.openScreen`(Forge)のextra-data機構でエンティティIDを同期。ボタン操作はバニラの`clickMenuButton`/`handleInventoryButtonClick`で完結し、独自パケットは不要だった）

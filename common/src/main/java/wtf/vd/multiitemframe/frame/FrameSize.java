@@ -43,6 +43,21 @@ public enum FrameSize {
         return rows;
     }
 
+    /**
+     * Number of grid columns a slot's settings-GUI widget group should span when centering it
+     * (used because the settings GUI always lays out slots within a fixed 2x2 grid region so
+     * every {@link FrameSize} produces a same-sized panel): stretches to fill both columns when
+     * this frame only has one column of its own, otherwise occupies a single column.
+     */
+    public int columnSpan() {
+        return columns == 1 ? 2 : 1;
+    }
+
+    /** Row-axis counterpart of {@link #columnSpan()}. */
+    public int rowSpan() {
+        return rows == 1 ? 2 : 1;
+    }
+
     public int slotCount() {
         return slotPositions.length;
     }

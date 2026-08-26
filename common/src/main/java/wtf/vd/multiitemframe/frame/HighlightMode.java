@@ -5,13 +5,12 @@ package wtf.vd.multiitemframe.frame;
  * Pure enum, no Minecraft API references, shared between loader modules.
  */
 public enum HighlightMode {
-    NONE,
     FRAME,
     FILL;
 
     private static final HighlightMode[] VALUES = values();
 
-    /** Cycles NONE -&gt; FRAME -&gt; FILL -&gt; NONE, used by the mode toggle button. */
+    /** Toggles FRAME &lt;-&gt; FILL. "No highlight" is expressed by the slot having no {@code DyeColor} set. */
     public HighlightMode next() {
         return VALUES[(this.ordinal() + 1) % VALUES.length];
     }

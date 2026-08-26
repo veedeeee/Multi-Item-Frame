@@ -21,9 +21,17 @@ import wtf.vd.multiitemframe.forge.registry.ModMenus;
  */
 public class MultiItemFrameMenu extends AbstractContainerMenu {
 
-    private static final int FRAME_SLOT_X = 62;
-    private static final int FRAME_SLOT_Y = 17;
-    private static final int SLOT_SIZE = 18;
+    /**
+     * The settings GUI always lays frame slots out within a fixed 2x2 grid region (so every
+     * {@link FrameSize} produces a same-sized, consistently-shaped panel instead of a variable
+     * one) - see {@link FrameSize#columnSpan()}/{@link FrameSize#rowSpan()}. Each cell holds one
+     * "row" widget group: the item slot, then the highlight-mode toggle button, then the
+     * highlight-color cycle button, matching {@code gui_sample.html}'s per-slot layout.
+     */
+    private static final int GRID_ORIGIN_X = 34;
+    private static final int GRID_ORIGIN_Y = 18;
+    private static final int CELL_WIDTH = 54;
+    private static final int CELL_HEIGHT = 18;
     /** First button id of the direct-color-set range (see {@link #clickMenuButton}). */
     public static final int DIRECT_COLOR_BASE = 1 + FrameSize.MAX_SLOTS * 2;
 
@@ -38,18 +46,25 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
 
         for (int i = 0; i < this.slotCount; i++) {
             int[] gridPos = size.slotPosition(i);
-            this.addSlot(new Slot(frame, i,
-                    FRAME_SLOT_X + gridPos[0] * SLOT_SIZE,
-                    FRAME_SLOT_Y + gridPos[1] * SLOT_SIZE));
+            int cellX = GRID_ORIGIN_X + gridPos[0] * CELL_WIDTH;
+            int cellY = GRID_ORIGIN_Y + gridPos[1] * CELL_HEIGHT;
+            int cellWidth = size.columnSpan() * CELL_WIDTH;
+            int cellHeight = size.rowSpan() * CELL_HEIGHT;
+            // Center this slot's widget group (item slot + buttons, CELL_WIDTH x CELL_HEIGHT)
+            // within the cell area it was assigned (wider/taller than one cell when this
+            // FrameSize only uses one column/row, per columnSpan()/rowSpan()).
+            int groupX = cellX + (cellWidth - CELL_WIDTH) / 2;
+            int groupY = cellY + (cellHeight - CELL_HEIGHT) / 2;
+            this.addSlot(new Slot(frame, i, groupX, groupY));
         }
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * SLOT_SIZE, 84 + row * SLOT_SIZE));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * SLOT_SIZE, 142));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
         }
     }
 
@@ -88,6 +103,18 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         if (slot >= 0 && slot < this.slotCount && this.frameContainer instanceof MultiItemFrameEntity frame) {
             frame.cycleHighlightMode(slot);
         }
+    }
+
+    /** Current highlight mode of a slot (used by the screen to pick the mode button's icon). */
+    public wtf.vd.multiitemframe.frame.HighlightMode getHighlightMode(int slot) {
+        return this.frameContainer instanceof MultiItemFrameEntity frame
+                ? frame.getHighlightMode(slot)
+                : wtf.vd.multiitemframe.frame.HighlightMode.FRAME;
+    }
+
+    /** Current highlight color of a slot, or {@code null} for "no highlight" (used by the screen's color button icon). */
+    public net.minecraft.world.item.DyeColor getHighlightColor(int slot) {
+        return this.frameContainer instanceof MultiItemFrameEntity frame ? frame.getHighlightColor(slot) : null;
     }
 
     private void cycleHighlightColor(int slot) {
