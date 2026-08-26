@@ -1,0 +1,141 @@
+name: PR Flow Policy
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deny-develop-to-main:
+    if: ${{ github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'develop' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deny direct develop to main PR
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const body = [
+              'This PR is denied automatically by repository policy.',
+              '',
+              '- Direct `develop -> main` pull requests are not allowed.',
+              '- Please create a `release/*` branch from `develop`, then open `release/* -> main`.',
+              '',
+              'If this was opened by mistake, this PR has been closed automatically.'
+            ].join('\n');
+
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: pr.number,
+                event: 'REQUEST_CHANGES',
+                body,
+              });
+            } catch (error) {
+              core.warning(`Failed to add REQUEST_CHANGES review: ${error.message}`);
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pr.number,
+              body,
+            });
+
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+
+  approve-main-to-develop:
+    if: ${{ github.event.pull_request.base.ref == 'develop' && github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto approve main to develop PR
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const alreadyApproved = reviews.some((review) =>
+              review.user?.login === 'github-actions[bot]' && review.state === 'APPROVED'
+            );
+
+            if (alreadyApproved) {
+              core.info('Approval already exists from github-actions[bot].');
+              return;
+            }
+
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+                body: [
+                  'Auto-approved by repository policy.',
+                  '',
+                  '- This is an allowed synchronization PR: `main -> develop`.',
+                ].join('\n'),
+              });
+            } catch (error) {
+              core.warning(`Failed to auto-approve PR: ${error.message}`);
+            }
+
+      - name: Auto merge main to develop PR
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            if (pr.draft) {
+              core.info('PR is draft. Skip auto merge.');
+              return;
+            }
+
+            const latest = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+
+            if (latest.data.state !== 'open') {
+              core.info('PR is not open. Skip auto merge.');
+              return;
+            }
+
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pr.number,
+                merge_method: 'merge',
+              });
+              core.info('PR merged automatically by policy.');
+            } catch (error) {
+              core.setFailed(`Failed to auto-merge PR: ${error.message}`);
+            }

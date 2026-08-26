@@ -1,0 +1,257 @@
+name: Release
+
+# Runs on every push to main (e.g. a merged release/vX.Y.Z PR), building all loaders and
+# publishing a GitHub Release for the version currently set in gradle.properties.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Read version from gradle.properties
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2 | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: tag_check
+        shell: bash
+        run: |
+          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract changelog section
+        id: changelog
+        shell: bash
+        run: |
+          VERSION_TAG="v${{ steps.version.outputs.version }}"
+          CHANGELOG_CONTENT=$(awk -v tag="$VERSION_TAG" '
+            $0 == tag { in_section=1; next }
+            in_section && /^v[0-9]+\.[0-9]+\.[0-9]+$/ { exit }
+            in_section { print }
+          ' CHANGELOG.md | sed '/^[[:space:]]*$/d')
+
+          if [ -z "$CHANGELOG_CONTENT" ]; then
+            echo "No section found for $VERSION_TAG in CHANGELOG.md" >&2
+            exit 1
+          fi
+
+          {
+            echo "body<<EOF"
+            echo "$CHANGELOG_CONTENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: actions/setup-java@v5.6.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Make gradlew executable
+        if: steps.tag_check.outputs.exists == 'false'
+        run: chmod +x gradlew
+
+      - name: Build all loaders
+        if: steps.tag_check.outputs.exists == 'false'
+        run: ./gradlew :forge:build :neoforge:build --console=plain
+
+      - name: Verify expected release jars
+        if: steps.tag_check.outputs.exists == 'false'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          REQUIRED=(
+            "forge/build/libs/multiitemframe-forge-1.20.1-${VERSION}.jar"
+            "neoforge/build/libs/multiitemframe-neoforge-1.21.1-${VERSION}.jar"
+          )
+          for file in "${REQUIRED[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Missing expected artifact: $file" >&2
+              exit 1
+            fi
+          done
+
+      - name: Collect release jars
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-jars
+          if [ "${{ steps.tag_check.outputs.exists }}" = "true" ]; then
+            # Tag already exists: download jars from the existing GitHub Release
+            gh release download ${{ steps.version.outputs.tag }} \
+              --pattern "*.jar" --dir release-jars \
+              --repo ${{ github.repository }}
+          else
+            find neoforge/build/libs forge/build/libs \
+              -name "*.jar" ! -name "*-sources*" ! -name "*-dev*" ! -name "*-javadoc*" \
+              -exec cp {} release-jars/ \;
+          fi
+
+      - name: Create GitHub Release
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: release-jars/*.jar
+          generate_release_notes: true
+
+      - name: Publish NeoForge 1.21.1 to CurseForge and Modrinth
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-jars/*neoforge-1.21.1*.jar
+          name: ${{ steps.version.outputs.tag }}
+          version: ${{ steps.version.outputs.version }}-neoforge-1.21.1
+          version-type: release
+          changelog: ${{ steps.changelog.outputs.body }}
+          loaders: neoforge
+          game-versions: 1.21.1
+          environment: client | server
+          dependencies: mekanism(optional)
+          fail-mode: warn
+
+      - name: Publish Forge to CurseForge and Modrinth
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-jars/*forge-1.20*.jar
+          name: ${{ steps.version.outputs.tag }}
+          version: ${{ steps.version.outputs.version }}-forge
+          version-type: release
+          changelog: ${{ steps.changelog.outputs.body }}
+          loaders: forge
+          game-versions: 1.20.1
+          environment: client | server
+          dependencies: mekanism(optional)
+          fail-mode: warn
+
+      - name: Create main to develop sync PR
+        if: always()
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.DEVELOP_SYNC_PAT }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // NOTE: PRs/reviews created here use the default GITHUB_TOKEN, so this event does
+            // NOT trigger other workflows (e.g. pr-flow-policy.yml's approve-main-to-develop
+            // job) due to GitHub's loop-prevention rule for GITHUB_TOKEN-authored events.
+            // Approve + merge the sync PR directly in this same job instead of relying on that
+            // workflow to react to it.
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:main`,
+              base: 'develop',
+            });
+
+            let pr;
+            if (prs.length > 0) {
+              pr = prs[0];
+              core.info(`Sync PR already exists: #${pr.number}`);
+            } else {
+              const { data: created } = await github.rest.pulls.create({
+                owner,
+                repo,
+                title: 'chore: sync main to develop',
+                head: 'main',
+                base: 'develop',
+                body: [
+                  '## Sync main → develop',
+                  '',
+                  'This PR was created automatically by the release workflow to sync main back to develop.',
+                  '',
+                  ':dependabot: This PR was prepared by GitHub Copilot',
+                ].join('\n'),
+              });
+              pr = created;
+              core.info(`Created sync PR: #${pr.number}`);
+            }
+
+            if (pr.draft) {
+              core.info('PR is draft. Skip auto approve/merge.');
+              return;
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const alreadyApproved = reviews.some((review) =>
+              review.user?.login === 'github-actions[bot]' && review.state === 'APPROVED'
+            );
+            if (!alreadyApproved) {
+              try {
+                await github.rest.pulls.createReview({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  event: 'APPROVE',
+                  body: [
+                    'Auto-approved by repository policy.',
+                    '',
+                    '- This is an allowed synchronization PR: `main -> develop`.',
+                  ].join('\n'),
+                });
+              } catch (error) {
+                core.warning(`Failed to auto-approve PR: ${error.message}`);
+              }
+            }
+
+            const latest = await github.rest.pulls.get({ owner, repo, pull_number: pr.number });
+            if (latest.data.state !== 'open') {
+              core.info('PR is not open. Skip auto merge.');
+              return;
+            }
+
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pr.number,
+                merge_method: 'merge',
+              });
+              core.info('PR merged automatically by the release workflow.');
+            } catch (error) {
+              core.setFailed(`Failed to auto-merge PR: ${error.message}`);
+            }

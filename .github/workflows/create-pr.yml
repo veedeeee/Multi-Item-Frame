@@ -1,0 +1,71 @@
+name: Create PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        description: 'Source branch (head)'
+        required: true
+      base:
+        description: 'Target branch (base)'
+        required: false
+        default: 'main'
+      title:
+        description: 'PR title'
+        required: true
+      body:
+        description: 'PR body (markdown)'
+        required: false
+        default: ':dependabot: This PR was prepared by GitHub Copilot'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR as github-actions[bot]
+        uses: actions/github-script@v9.0.0
+        env:
+          PR_HEAD: ${{ inputs.head }}
+          PR_BASE: ${{ inputs.base }}
+          PR_TITLE: ${{ inputs.title }}
+          PR_BODY: ${{ inputs.body }}
+        with:
+          script: |
+            const head = process.env.PR_HEAD;
+            const title = process.env.PR_TITLE;
+            const body = process.env.PR_BODY || ':dependabot: This PR was prepared by GitHub Copilot';
+            const base = process.env.PR_BASE || 'main';
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${head}`,
+              base,
+            });
+            if (prs.length > 0) {
+              core.info(`PR already exists: #${prs[0].number} - ${prs[0].html_url}`);
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              head,
+              base,
+              body,
+            });
+
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              reviewers: [context.repo.owner],
+            });
+
+            core.info(`Created PR: #${pr.number} - ${pr.html_url}`);

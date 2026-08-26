@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5.6.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build all loaders
+        run: ./gradlew :forge:build :neoforge:build --console=plain
+
+      - name: Verify expected loader jars
+        shell: bash
+        run: |
+          VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2 | tr -d '[:space:]')
+          REQUIRED=(
+            "forge/build/libs/multiitemframe-forge-1.20.1-${VERSION}.jar"
+            "neoforge/build/libs/multiitemframe-neoforge-1.21.1-${VERSION}.jar"
+          )
+          for file in "${REQUIRED[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Missing expected artifact: $file" >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload NeoForge artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: neoforge-jars
+          path: neoforge/build/libs/*.jar
+
+      - name: Upload Forge artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: forge-jars
+          path: forge/build/libs/*.jar

@@ -1,0 +1,79 @@
+# Multi Item Frame — 開発タスク洗い出し
+
+現状、リポジトリには `README.md` / `.editorconfig` / `.github/**`（instructions・workflows）のみが存在し、Gradleプロジェクトや実装コードは一切存在しない。以下は、README・`copilot-instructions.md`・既存ワークフローから読み取れる仕様をもとにした、ゼロからの実装に必要なタスクの洗い出し。
+
+## 0. 前提の確認・矛盾点の解消
+
+- [x] `README.md`の`Supported targets`表（NeoForge 1.21.1 / Forge 1.20.1のみ）と、`.github/copilot-instructions.md`の`Supported Loaders`（NeoForge 1.21.1 / **NeoForge 26.1.2** / Forge 1.20.1）の食い違いを確認し、NeoForge 26.1.2（`neoforge2612`モジュール）を今回のスコープに含めるか決定する
+- [x] `README.md`のOptional Dependenciesに`Jade 🔍`が挙げられているが、対応する機能説明が本文に無い。Jade連携（例: フレームの中身をツールチップ表示するWailaプロバイダ）を実装するか、記載を削除するか方針を決める
+- [x] `.github/workflows/build.yml`・`release.yml`内のアーティファクト名・パスを`multiitemframe-forge-1.20.1-*.jar` / `multiitemframe-neoforge-1.21.1-*.jar`に修正し、`neoforge2612`除外を前提とした古いコメントも削除した
+- [x] `release.yml`の`mc-publish`ステップの`dependencies: mekanism(required)`を、README.mdの記載（Mekanismはoptional）に合わせて`mekanism(optional)`に修正した
+- [x] `copilot-instructions.md`のコメント（Mekanismバージョン未リリースのため`neoforge2612`を除外、という注記）も別プロジェクト由来と思われる内容。Multi Item Frame用に書き直すか削除する
+
+## 1. プロジェクト基盤（マルチローダー構成）
+
+- [ ] Gradleマルチモジュール構成を新規作成: `common` / `forge` / `neoforge`
+- [ ] `settings.gradle` / `build.gradle`（ルート・各モジュール）を作成し、Forge 1.20.1 / NeoForge 1.21.1向けのビルド設定を行う
+- [ ] `gradle.properties`を作成し、MOD ID・バージョン・対象MC/ローダーバージョン等を定義（`release.yml`が`version=`を参照する前提）
+- [ ] Gradle Wrapper（`gradlew` / `gradlew.bat` / `gradle/wrapper/*`）を追加
+- [ ] `.gitignore`を作成（`build/`, `.gradle/`, `run/`等）
+- [ ] MOD ID（例: `multiitemframe`）とMOD名・説明・作者等のメタデータを確定
+- [ ] Forge用`mods.toml`、NeoForge用`neoforge.mods.toml`を作成
+- [ ] アイコン画像等のMODメタデータアセットを準備
+
+## 2. コアロジック（`common`モジュール）
+
+- [ ] Item Frame拡張ブロック/ブロックエンティティの基本設計（バニラ`item_frame`の挙動を踏襲しつつ複数スロット対応）
+- [ ] サイズバリエーションの実装: `1x1` / `1x2`（縦2連結） / `2x1`（横2連結） / `1and2`（上1・下2） / `2and1`（上2・下1） / `2x2`
+- [ ] 各サイズごとのブロック・アイテム・ブロックエンティティ・NBT/データコンポーネントの登録
+- [ ] 背景の表示/透過切り替え機能
+- [ ] アイテム設置ロジック: インベントリからの設置、JEIからのドラッグ設置
+- [ ] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去
+- [ ] ハイライトカラー設定機能: モードボタン（無し/フレーム/背景塗りつぶし）のトグル、色トグルボタン、インベントリ/JEIからの染料ドラッグ
+- [ ] 設定コピー用の共通インターフェース（Memory Card / Configuration Cardの両方から呼べる形で設計）
+- [ ] ネットワーキング（クライアント⇔サーバー間のGUI操作・状態同期パケット）
+- [ ] グロー版（`glow_frame_*`）の実装（発光ロジック、非グロー→グロー変換）
+
+## 3. クラフトレシピ
+
+- [ ] `Multi Item Frame 1x1`: Item Frame + Redstone Dust（シェイプレス）
+- [ ] `1x2`（縦2連結）/ `2x1`（横2連結）レシピ、および両者間の単一クラフトによる相互変換（1,2キー分クラフトグリッドに置くだけで変換）
+- [ ] `1,2`（上1下2）/ `2,1`（上2下1）レシピ（複数パターン: 1x1×3個の並び、または1x1+1x2の組み合わせ）
+- [ ] `2x2`レシピ（複数パターン: 1x1×4、1x2×2、2x1×2）
+- [ ] グロー版レシピ: `Glowing 1x1` = 非グロー1x1 + Glowstone Dust（シェイプレス）、他サイズは対応する非グロー版のグロー変換
+- [ ] レシピの実装後、README記載のクラフト図と実際のレシピJSONの整合性を確認
+
+## 4. アセット
+
+- [ ] ブロックステート・ブロックモデル（サイズ×通常/グロー分）
+- [ ] アイテムモデル（インベントリ表示用）
+- [ ] テクスチャ: フレーム本体、背景表示/透過の差分、ハイライト状態（無し/フレーム/塗りつぶし）の差分、グロー発光テクスチャ
+- [ ] 言語ファイル（`en_us.json`、必要なら`ja_jp.json`）
+- [ ] レシピJSON・（必要なら）ルートテーブル・タグ定義
+
+## 5. 任意依存MODとの連携
+
+- [ ] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト
+- [ ] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト
+- [ ] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合
+- [ ] **Jade**: 上記0章の方針決定後、必要であればWailaプロバイダを実装
+
+各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+実行時判定、またはローダー別の統合モジュール分離）とする。
+
+## 6. ドキュメント・リリース関連
+
+- [ ] `CHANGELOG.md`を新規作成（`release.yml`がバージョンごとのセクションを読み取る前提のフォーマットに合わせる）
+- [ ] `docs/user-test-checklist-template.md`を新規作成（`copilot-instructions.md`のRelease Flowが参照するテンプレート）
+- [ ] LICENSEファイルの要否を確認・追加
+
+## 7. テスト環境
+
+- [ ] `D:\curseforge\minecraft\Instances\MultiIF-Forge 1.20.1` インスタンスの存在確認・作成
+- [ ] `D:\curseforge\minecraft\Instances\MultiIF-NeoForge 1.21.1` インスタンスの存在確認・作成
+- [ ] 上記インスタンスへの依存MOD（AE2, Mekanism, JEI, Jade）導入・動作確認環境の準備
+
+## 8. CI/CD
+
+- [x] `build.yml` / `release.yml`のアーティファクト名・パスをMOD名に合わせて修正（0章参照、対応済み）
+- [ ] `gradlew build --console=plain`がローカルで通ることを確認
+- [ ] CurseForge / Modrinthのプロジェクト作成（`CURSEFORGE_PROJECT_ID` / `MODRINTH_PROJECT_ID`等のリポジトリ変数・シークレット設定）
