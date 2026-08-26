@@ -63,11 +63,17 @@
 
 ## 5. 任意依存MODとの連携
 
-- [ ] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト
-- [ ] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト
+- [x] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト（`Ae2MemoryCardCompat`、forge/neoforge双方）
+- [x] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト（`MekanismConfigCardCompat`、forge/neoforge双方）
 - [ ] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合
 
-各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+実行時判定、またはローダー別の統合モジュール分離）とする。
+各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装）で対応済み。
+
+AE2/Mekanism連携の実装メモ:
+- AE2はForge/1.20.1（15.x系）とNeoForge/1.21.1（19.x系）で`IMemoryCard`のストレージAPIが非互換（旧: `setMemoryCardContents`による自由なCompoundTag保存、新: `IUpgradeableObject`/`IConfigurableObject`/`IPriorityHost`/`IConfigInvHost`のみを対象とするDataComponentベースの固定スキーマで、任意NBT保存の手段が廃止されている）。本MODはEntityであり、いずれのAPIにも自然には乗らないため、`IMemoryCard`は型判定と`notifyUser`によるメッセージ表示のみに使い、実データは独自の名前空間タグキー（`multiitemframe:frame_settings`）でカードのItemStackに直接保存する方式に統一した（両ローダーで完全に同一の挙動）。
+- Mekanismの`IConfigCardAccess`（Configuration Card連携用capability）は`BlockEntity`のみを対象とする設計（`ItemConfigurationCard.useOn`経由のcapability lookup）で、Entityである本MODには発火しないため、Mekanism公式のディスパッチ機構は使わず、アイテムの登録名（`mekanism:configuration_card`）による直接判定と、Mekanism本体のカードNBT構造（`mek_data`/`data`/`data_name`。Forge/1.20.1は`mekanism.api.NBTConstants`、NeoForge/1.21.1は`mekanism.api.SerializationConstants`とキー名が変わっている）を模倣した独自書き込みで対応。
+- NeoForge/1.21.1側はvanillaのData Components移行に伴い、ItemStackへの自由なNBT保存は`DataComponents.CUSTOM_DATA`（`CustomData.of(tag)`/`copyTag()`）経由で行う。
+- チャットメッセージ（保存/読込/不正カード）は`gui.multiitemframe.config_card_saved`等の翻訳キーを使用しているが、対応する`en_us.json`はCh.4（アセット、ユーザーの指示により保留中）でまとめて追加する。それまでは未翻訳キーがそのまま表示される。
 
 ## 6. ドキュメント・リリース関連
 

@@ -204,8 +204,21 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
-        if (!this.level().isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-            serverPlayer.openMenu(this, buf -> buf.writeVarInt(this.getId()));
+        ItemStack held = player.getItemInHand(hand);
+        if (!this.level().isClientSide) {
+            if (net.neoforged.fml.ModList.get().isLoaded("ae2")
+                    && wtf.vd.multiitemframe.neoforge.compat.ae2.Ae2MemoryCardCompat.isMemoryCard(held)) {
+                wtf.vd.multiitemframe.neoforge.compat.ae2.Ae2MemoryCardCompat.handle(this, player, held);
+                return InteractionResult.CONSUME;
+            }
+            if (net.neoforged.fml.ModList.get().isLoaded("mekanism")
+                    && wtf.vd.multiitemframe.neoforge.compat.mekanism.MekanismConfigCardCompat.isConfigCard(held)) {
+                wtf.vd.multiitemframe.neoforge.compat.mekanism.MekanismConfigCardCompat.handle(this, player, held);
+                return InteractionResult.CONSUME;
+            }
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(this, buf -> buf.writeVarInt(this.getId()));
+            }
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
     }
