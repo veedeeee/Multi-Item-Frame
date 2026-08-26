@@ -81,9 +81,9 @@ JEI連携の実装メモ:
 
 ## 6. ドキュメント・リリース関連
 
-- [ ] `CHANGELOG.md`を新規作成（`release.yml`がバージョンごとのセクションを読み取る前提のフォーマットに合わせる）
-- [ ] `docs/user-test-checklist-template.md`を新規作成（`copilot-instructions.md`のRelease Flowが参照するテンプレート）
-- [ ] LICENSEファイルの要否を確認・追加
+- [x] `CHANGELOG.md`を新規作成（`release.yml`がバージョンごとのセクションを読み取る前提のフォーマットに合わせる）
+- [x] `docs/user-test-checklist-template.md`を新規作成（`copilot-instructions.md`のRelease Flowが参照するテンプレート）
+- [x] LICENSEファイルの要否を確認・追加（Ch.1で`LGPL-3.0`のLICENSEを前倒しで作成済み。追加対応不要）
 
 ## 7. テスト環境
 
