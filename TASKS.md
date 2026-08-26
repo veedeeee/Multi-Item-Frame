@@ -55,11 +55,12 @@
 
 ## 4. アセット
 
-- [ ] ブロックステート・ブロックモデル（サイズ×通常/グロー分）
-- [ ] アイテムモデル（インベントリ表示用）
-- [ ] テクスチャ: フレーム本体、背景表示/透過の差分、ハイライト状態（無し/フレーム/塗りつぶし）の差分、グロー発光テクスチャ
-- [ ] 言語ファイル（`en_us.json`、必要なら`ja_jp.json`）
-- [ ] レシピJSON・（必要なら）ルートテーブル・タグ定義
+- [x] ~~ブロックステート・ブロックモデル~~ — Ch.2でエンティティとして実装したため対象外（ブロックではない）
+- [x] アイテムモデル（インベントリ表示用、12種すべて `item/generated` 参照のプレースホルダーを配置。`common/src/main/resources/assets/multiitemframe/models/item/`）
+- [x] テクスチャ: プレースホルダーを配置済み（`common/src/main/resources/assets/multiitemframe/textures/`）。フレーム本体アイテムアイコン12種（`item/`）、インワールド用フレーム本体・グロー発光（`entity/frame.png`・`frame_glow.png`）、背景表示用（`entity/background.png`）、ハイライト用の枠・塗りつぶし各1枚（`entity/highlight_frame.png`・`highlight_fill.png`、いずれも白色で描画時にスロットごとの`DyeColor`へ着色する想定、16色分を個別に用意しない）。実物の描画ロジック（`MultiItemFrameRenderer`）は未実装のまま、Ch.4の残タスク。
+- [x] 言語ファイル（`en_us.json`）は既存のforge/neoforge双方の`assets/multiitemframe/lang/en_us.json`に集約（Ch.2時点で作成済みだったため、Ch.5で追加した`config_card_*`キーの翻訳文言を今回追記）。`ja_jp.json`は未着手（必要になれば別途）。
+- [x] レシピJSON・タグ定義はCh.3で完了済み（ルートテーブルは対象外、右クリックで取得するため不要）。
+- 生成用ツール: `tools/generate_placeholder_assets.py`（再実行で全プレースホルダーを再生成可能。本物のアートに差し替える際は、上記の着色前提テクスチャの仕組みを踏襲すること）。
 
 ## 5. 任意依存MODとの連携
 
@@ -73,7 +74,7 @@ AE2/Mekanism連携の実装メモ:
 - AE2はForge/1.20.1（15.x系）とNeoForge/1.21.1（19.x系）で`IMemoryCard`のストレージAPIが非互換（旧: `setMemoryCardContents`による自由なCompoundTag保存、新: `IUpgradeableObject`/`IConfigurableObject`/`IPriorityHost`/`IConfigInvHost`のみを対象とするDataComponentベースの固定スキーマで、任意NBT保存の手段が廃止されている）。本MODはEntityであり、いずれのAPIにも自然には乗らないため、`IMemoryCard`は型判定と`notifyUser`によるメッセージ表示のみに使い、実データは独自の名前空間タグキー（`multiitemframe:frame_settings`）でカードのItemStackに直接保存する方式に統一した（両ローダーで完全に同一の挙動）。
 - Mekanismの`IConfigCardAccess`（Configuration Card連携用capability）は`BlockEntity`のみを対象とする設計（`ItemConfigurationCard.useOn`経由のcapability lookup）で、Entityである本MODには発火しないため、Mekanism公式のディスパッチ機構は使わず、アイテムの登録名（`mekanism:configuration_card`）による直接判定と、Mekanism本体のカードNBT構造（`mek_data`/`data`/`data_name`。Forge/1.20.1は`mekanism.api.NBTConstants`、NeoForge/1.21.1は`mekanism.api.SerializationConstants`とキー名が変わっている）を模倣した独自書き込みで対応。
 - NeoForge/1.21.1側はvanillaのData Components移行に伴い、ItemStackへの自由なNBT保存は`DataComponents.CUSTOM_DATA`（`CustomData.of(tag)`/`copyTag()`）経由で行う。
-- チャットメッセージ（保存/読込/不正カード）は`gui.multiitemframe.config_card_saved`等の翻訳キーを使用しているが、対応する`en_us.json`はCh.4（アセット、ユーザーの指示により保留中）でまとめて追加する。それまでは未翻訳キーがそのまま表示される。
+- チャットメッセージ（保存/読込/不正カード）は`gui.multiitemframe.config_card_saved`等の翻訳キーを使用しており、対応する翻訳文言はCh.4で両ローダーの`en_us.json`に追記済み。
 
 JEI連携の実装メモ:
 - `mezz.jei:jei-*-forge-api`/`jei-*-neoforge-api`はローダー固有の薄いシムのみを含み、`IModPlugin`/`IGhostIngredientHandler`等の本体APIは別アーティファクト`mezz.jei:jei-*-common-api`にある。両`build.gradle`に`compileOnly`を追加した。
