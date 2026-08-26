@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "&&"
+  ],
+  "key": {
+    "&": "multiitemframe:frame_1x2"
+  },
+  "result": {
+    "id": "multiitemframe:frame_2x2",
+    "count": 1
+  }
+}

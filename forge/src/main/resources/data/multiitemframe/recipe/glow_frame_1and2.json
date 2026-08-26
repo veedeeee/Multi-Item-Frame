@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "@ ",
+    "@@"
+  ],
+  "key": {
+    "@": {
+      "item": "multiitemframe:glow_frame_1x1"
+    }
+  },
+  "result": {
+    "item": "multiitemframe:glow_frame_1and2",
+    "count": 1
+  }
+}
