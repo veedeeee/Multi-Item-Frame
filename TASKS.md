@@ -32,10 +32,10 @@
 - [x] 各サイズごとのアイテム・エンティティ登録、およびNBT保存/復元（forge/neoforgeそれぞれに`MultiItemFrameEntity`実装。エンティティ種別は`multi_item_frame`/`glow_multi_item_frame`の2つのみで、サイズは同期エンティティデータとして保持）
 - [x] 背景の表示/透過切り替え機能（`isBackgroundVisible`/`toggleBackground`。実際のテクスチャ切り替えはCh.4）
 - [x] アイテム設置ロジック: インベントリからの設置（GUIの`quickMoveStack`、中クリック消去含む）
-- [ ] JEIからのドラッグ設置（Ch.5のJEI連携で対応）
+- [x] JEIからのドラッグ設置（実アイテムスロットへのドラッグはJEI標準機能でそのまま動作。Ch.5のJEI連携で染料ドラッグ用のゴーストターゲットのみ追加実装）
 - [x] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去（`MultiItemFrameMenu`/`MultiItemFrameScreen`。背景は暫定的にバニラの`generic_54`テクスチャを流用、専用アセットはCh.4）
 - [x] ハイライトカラー設定機能: モードボタンのトグル、色トグルボタン（バニラの`clickMenuButton`機構を利用、追加のネットワーキング実装は不要だった）
-- [ ] インベントリ/JEIからの染料ドラッグでの色設定（現状は色トグルボタンのみ対応。ドラッグ操作はCh.5のJEI連携と合わせて検討）
+- [x] インベントリ/JEIからの染料ドラッグでの色設定（色トグルボタンに加え、JEIの`IGhostIngredientHandler`で染料をボタンへ直接ドラッグ&ドロップ可能。インベントリからのドラッグは通常のドラッグ&ドロップに対応する専用UIが無いため対象外、ボタンクリックでの巡回設定を継続採用）
 - [x] 設定コピー用の共通インターフェース（`copySettings()`/`pasteSettings(CompoundTag)`をforge/neoforge双方の`MultiItemFrameEntity`に同一シグネチャで実装。実際のMemory Card/Configuration Card連携はCh.5）
 - [x] ネットワーキング（GUIオープンは`ServerPlayer#openMenu`(NeoForge)/`NetworkHooks.openScreen`(Forge)のextra-data機構でエンティティIDを同期。ボタン操作はバニラの`clickMenuButton`/`handleInventoryButtonClick`で完結し、独自パケットは不要だった）
 - [x] グロー版（`glow_frame_*`）の実装（`GlowMultiItemFrameEntity`、専用サウンドのみ上書き。発光の視覚表現はCh.4のレンダラー/テクスチャで対応）
@@ -65,7 +65,7 @@
 
 - [x] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト（`Ae2MemoryCardCompat`、forge/neoforge双方）
 - [x] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト（`MekanismConfigCardCompat`、forge/neoforge双方）
-- [ ] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合
+- [x] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合（実アイテムスロットへのドラッグはJEI標準機能。染料ドラッグによる色設定は`IGhostIngredientHandler`で追加実装）
 
 各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装）で対応済み。
 
@@ -74,6 +74,10 @@ AE2/Mekanism連携の実装メモ:
 - Mekanismの`IConfigCardAccess`（Configuration Card連携用capability）は`BlockEntity`のみを対象とする設計（`ItemConfigurationCard.useOn`経由のcapability lookup）で、Entityである本MODには発火しないため、Mekanism公式のディスパッチ機構は使わず、アイテムの登録名（`mekanism:configuration_card`）による直接判定と、Mekanism本体のカードNBT構造（`mek_data`/`data`/`data_name`。Forge/1.20.1は`mekanism.api.NBTConstants`、NeoForge/1.21.1は`mekanism.api.SerializationConstants`とキー名が変わっている）を模倣した独自書き込みで対応。
 - NeoForge/1.21.1側はvanillaのData Components移行に伴い、ItemStackへの自由なNBT保存は`DataComponents.CUSTOM_DATA`（`CustomData.of(tag)`/`copyTag()`）経由で行う。
 - チャットメッセージ（保存/読込/不正カード）は`gui.multiitemframe.config_card_saved`等の翻訳キーを使用しているが、対応する`en_us.json`はCh.4（アセット、ユーザーの指示により保留中）でまとめて追加する。それまでは未翻訳キーがそのまま表示される。
+
+JEI連携の実装メモ:
+- `mezz.jei:jei-*-forge-api`/`jei-*-neoforge-api`はローダー固有の薄いシムのみを含み、`IModPlugin`/`IGhostIngredientHandler`等の本体APIは別アーティファクト`mezz.jei:jei-*-common-api`にある。両`build.gradle`に`compileOnly`を追加した。
+- フレームのアイテムスロットは通常の`Slot`なので、JEI標準のドラッグ&ドロップ（インベントリ/JEI一覧からスロットへ）は追加コード無しでそのまま機能する。ハイライト色トグルボタンは`Slot`ではない独自ウィジェットのため、そこへの染料ドラッグのみ`IGhostIngredientHandler<MultiItemFrameScreen>`（`compat.jei.MultiItemFrameJeiPlugin`、`@JeiPlugin`で自動検出）で対応し、ドロップ時に色を直接設定する新しいメニューボタンID範囲（`MultiItemFrameMenu.DIRECT_COLOR_BASE`以降）を追加した。
 
 ## 6. ドキュメント・リリース関連
 

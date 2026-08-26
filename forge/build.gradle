@@ -85,6 +85,7 @@ dependencies {
     // Optional soft dependencies (Ch.5): only used behind runtime ModList checks, never required.
     compileOnly "maven.modrinth:ae2:${ae2_version_forge}"
     compileOnly "mekanism:Mekanism:${mekanism_version_forge}:api"
+    compileOnly "mezz.jei:jei-1.20.1-common-api:${jei_version_forge}"
     compileOnly "mezz.jei:jei-1.20.1-forge-api:${jei_version_forge}"
 }
 

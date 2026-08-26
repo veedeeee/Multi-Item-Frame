@@ -58,6 +58,23 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         }
     }
 
+    /** Number of active frame slots (used by JEI's dye-drag ghost handler to enumerate targets). */
+    public int getSlotCount() {
+        return this.menu.slotCount;
+    }
+
+    /** Screen-space bounds of the color-toggle button for the given frame slot. */
+    public net.minecraft.client.renderer.Rect2i getColorButtonArea(int slot) {
+        int buttonX = this.leftPos + 60 + (slot % 2) * 56 + 28;
+        int buttonY = this.topPos + 40 + (slot / 2) * 20;
+        return new net.minecraft.client.renderer.Rect2i(buttonX, buttonY, 26, 16);
+    }
+
+    /** Sets a slot's highlight color directly (used by JEI's dye-drag ghost ingredient handler). */
+    public void sendDirectColor(int slot, net.minecraft.world.item.DyeColor color) {
+        this.clickButton(MultiItemFrameMenu.DIRECT_COLOR_BASE + slot * 16 + color.getId());
+    }
+
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);

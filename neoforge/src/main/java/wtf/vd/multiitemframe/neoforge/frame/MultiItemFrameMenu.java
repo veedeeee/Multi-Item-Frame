@@ -15,14 +15,17 @@ import wtf.vd.multiitemframe.neoforge.registry.ModMenus;
  * GUI for setting the displayed items of a Multi Item Frame.
  * Frame slots are backed directly by the frame entity (synced automatically
  * via entity data); the rest of the grid is the usual player inventory so
- * items can be dragged in from there (or from JEI's ghost-slot drag, once
- * that integration is added).
+ * items can be dragged in from there (or from JEI's ghost-slot drag for dyes
+ * onto the color buttons; see the {@code jei} compat package and the
+ * direct-color-set button ids below).
  */
 public class MultiItemFrameMenu extends AbstractContainerMenu {
 
     private static final int FRAME_SLOT_X = 62;
     private static final int FRAME_SLOT_Y = 17;
     private static final int SLOT_SIZE = 18;
+    /** First button id of the direct-color-set range (see {@link #clickMenuButton}). */
+    public static final int DIRECT_COLOR_BASE = 1 + FrameSize.MAX_SLOTS * 2;
 
     private final Container frameContainer;
     public final int slotCount;
@@ -97,11 +100,21 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         frame.setHighlightColor(slot, nextIndex >= colors.length ? null : colors[nextIndex]);
     }
 
+    /** Sets a slot's highlight color directly (used by the JEI dye-drag ghost ingredient handler). */
+    public void setHighlightColorDirect(int slot, net.minecraft.world.item.DyeColor color) {
+        if (slot >= 0 && slot < this.slotCount && this.frameContainer instanceof MultiItemFrameEntity frame) {
+            frame.setHighlightColor(slot, color);
+        }
+    }
+
     /**
      * Handles the mode/color toggle buttons rendered in the screen (vanilla's generic
      * button-click mechanism, the same one used by e.g. the Loom/Beacon screens).
      * Button id layout: {@code 0} = background toggle, {@code 1..4} = cycle highlight
-     * mode for slot {@code id-1}, {@code 5..8} = cycle highlight color for slot {@code id-5}.
+     * mode for slot {@code id-1}, {@code 5..8} = cycle highlight color for slot
+     * {@code id-5}, {@code 9..} = direct-set highlight color to
+     * {@code DyeColor.byId((id - DIRECT_COLOR_BASE) % 16)} for slot
+     * {@code (id - DIRECT_COLOR_BASE) / 16} (used by JEI's dye-drag ghost target).
      */
     @Override
     public boolean clickMenuButton(Player player, int id) {
@@ -115,6 +128,11 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         }
         if (id >= 1 + FrameSize.MAX_SLOTS && id <= 1 + FrameSize.MAX_SLOTS * 2) {
             this.cycleHighlightColor(id - 1 - FrameSize.MAX_SLOTS);
+            return true;
+        }
+        if (id >= DIRECT_COLOR_BASE && id < DIRECT_COLOR_BASE + FrameSize.MAX_SLOTS * 16) {
+            int offset = id - DIRECT_COLOR_BASE;
+            this.setHighlightColorDirect(offset / 16, net.minecraft.world.item.DyeColor.byId(offset % 16));
             return true;
         }
         return false;
