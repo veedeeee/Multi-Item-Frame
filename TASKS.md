@@ -66,7 +66,6 @@
 - [ ] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト
 - [ ] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト
 - [ ] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合
-- [ ] **Jade**: 上記0章の方針決定後、必要であればWailaプロバイダを実装
 
 各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+実行時判定、またはローダー別の統合モジュール分離）とする。
 

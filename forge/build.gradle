@@ -70,8 +70,22 @@ minecraft {
 
 sourceSets.main.resources.srcDir 'src/generated/resources'
 
+repositories {
+    // Mekanism API (optional integration, Ch.5). AE2/JEI already resolve via common's Modrinth/BlameJared repos.
+    maven {
+        name = 'Modmaven'
+        url = 'https://modmaven.dev/'
+        content { includeGroup 'mekanism' }
+    }
+}
+
 dependencies {
     minecraft "net.minecraftforge:forge:${forgeMinecraftVersion}-${forgeVersion}"
+
+    // Optional soft dependencies (Ch.5): only used behind runtime ModList checks, never required.
+    compileOnly "maven.modrinth:ae2:${ae2_version_forge}"
+    compileOnly "mekanism:Mekanism:${mekanism_version_forge}:api"
+    compileOnly "mezz.jei:jei-1.20.1-forge-api:${jei_version_forge}"
 }
 
 publishing {
