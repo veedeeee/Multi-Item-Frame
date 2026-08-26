@@ -87,12 +87,12 @@ JEI連携の実装メモ:
 
 ## 7. テスト環境
 
-- [ ] `D:\curseforge\minecraft\Instances\MultiIF-Forge 1.20.1` インスタンスの存在確認・作成
-- [ ] `D:\curseforge\minecraft\Instances\MultiIF-NeoForge 1.21.1` インスタンスの存在確認・作成
-- [ ] 上記インスタンスへの依存MOD（AE2, Mekanism, JEI, Jade）導入・動作確認環境の準備
+- [x] `D:\curseforge\minecraft\Instances\MultiIF-Forge 1.20.1` インスタンスの存在確認・作成（既存を確認済み）
+- [x] `D:\curseforge\minecraft\Instances\MultiIF-NeoForge 1.21.1` インスタンスの存在確認・作成（既存を確認済み）
+- [x] 上記インスタンスへの依存MOD（AE2, Mekanism, JEI, Jade）導入・動作確認環境の準備（Forge側はAE2/Mekanism/JEI/Jade導入済み、NeoForge側はAE2/Mekanism/JEI導入済み。Jadeはこのプロジェクトの依存関係ではないため必須ではない）。両インスタンスの`mods`フォルダに最新ビルドの`multiitemframe-*.jar`を配置済み。実際の起動・手動テストはユーザー側で実施。
 
 ## 8. CI/CD
 
 - [x] `build.yml` / `release.yml`のアーティファクト名・パスをMOD名に合わせて修正（0章参照、対応済み）
-- [ ] `gradlew build --console=plain`がローカルで通ることを確認
+- [x] `gradlew build --console=plain`がローカルで通ることを確認（このセッションで複数回確認済み。直近: Ch.5完了時点でBUILD SUCCESSFUL）
 - [ ] CurseForge / Modrinthのプロジェクト作成（`CURSEFORGE_PROJECT_ID` / `MODRINTH_PROJECT_ID`等のリポジトリ変数・シークレット設定）
