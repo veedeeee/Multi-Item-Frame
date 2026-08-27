@@ -92,7 +92,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         renderBox(poseStack, buffer, frameTexture, sideTexture, -halfWidth, -halfHeight, halfWidth, halfHeight,
                 packedLight);
 
-        float depth = HALF_THICKNESS + LAYER_STEP;
+        // Background/highlight/item layers stack toward -Z rather than +Z: empirical in-game
+        // testing showed items/highlights only appeared on the far side of the mounting block
+        // (visible "through" transparent blocks like glass) and were invisible from the actual
+        // accessible/open side where the GUI is opened - i.e. the opposite of what the +Z
+        // convention documented in ItemFrameRenderer (decompiled) would suggest for this entity.
+        // Rather than re-deriving the exact winding/axis reason (previous attempts at that kind
+        // of reasoning didn't match real behavior), the layers are simply stacked toward -Z,
+        // which was verified to put them on the correct/open side.
+        float depth = -(HALF_THICKNESS + LAYER_STEP);
 
         if (entity.isBackgroundVisible()) {
             for (int slot = 0; slot < size.slotCount(); slot++) {
@@ -100,9 +108,9 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 float left = -halfWidth + (float) gridPos[0] * cellWidth;
                 float top = halfHeight - (float) gridPos[1] * cellHeight;
                 renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellHeight, left + cellWidth, top,
-                        depth, 0xFFFFFFFF, packedLight, 1.0F);
+                        depth, 0xFFFFFFFF, packedLight, -1.0F);
             }
-            depth += LAYER_STEP;
+            depth -= LAYER_STEP;
         }
 
         // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot frames);
@@ -123,13 +131,13 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                         ? HIGHLIGHT_FRAME_TEXTURE
                         : HIGHLIGHT_FILL_TEXTURE;
                 renderQuad(poseStack, buffer, overlay, left, top - cellHeight, left + cellWidth, top, depth,
-                        0xFF000000 | rgb, packedLight, 1.0F);
+                        0xFF000000 | rgb, packedLight, -1.0F);
             }
 
             ItemStack stack = entity.getItem(slot);
             if (!stack.isEmpty()) {
                 poseStack.pushPose();
-                poseStack.translate(left + cellWidth / 2.0F, top - cellHeight / 2.0F, depth + LAYER_STEP);
+                poseStack.translate(left + cellWidth / 2.0F, top - cellHeight / 2.0F, depth - LAYER_STEP);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
