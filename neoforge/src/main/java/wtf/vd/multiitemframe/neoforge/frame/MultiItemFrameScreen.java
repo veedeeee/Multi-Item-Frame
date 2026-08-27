@@ -38,6 +38,10 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
     private static final int BASE_HIGHLIGHT_COLOR = 0xFFFFFFFF;
     private static final int BASE_SHADOW_COLOR = 0xFF434343;
     private static final int BASE_FILL_COLOR = 0xFFBEBEBE;
+    /** Grid divider line color/thickness, matching the {@code gui/main_gui_*_placeholder.png}
+     *  reference layouts' 1px mid-gray lines (sampled: RGB 135,135,135). */
+    private static final int GRID_DIVIDER_COLOR = 0xFF878787;
+    private static final int GRID_DIVIDER_THICKNESS = 1;
 
     /** Gap (px) between the item slot and the mode button, and between the mode and color buttons. */
     private static final int BUTTON_GAP = 3;
@@ -184,10 +188,38 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         // stretching the whole 333x256 canvas into the 176x166 destination, which squished the
         // artwork and made it look inconsistent across GUI Scale settings.
         guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 333, 256);
+        this.drawGridDividers(guiGraphics);
         for (int slot = 0; slot < this.menu.slotCount; slot++) {
             Slot itemSlot = this.menu.getSlot(slot);
             guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x, this.topPos + itemSlot.y,
                     0, 0, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE);
+        }
+    }
+
+    /**
+     * Draws the settings viewport's grid divider line(s) between adjacent frame slots, matching
+     * the {@code gui/main_gui_*_placeholder.png} reference layouts: a horizontal line between the
+     * grid's two rows (when this size has 2 distinct rows), and vertical line segment(s) between
+     * the two columns within a row (skipped for a row occupied by a single slot spanning both
+     * columns - see {@link wtf.vd.multiitemframe.frame.FrameSize#hasVerticalDivider(int)}).
+     */
+    private void drawGridDividers(GuiGraphics guiGraphics) {
+        wtf.vd.multiitemframe.frame.FrameSize size = this.menu.frameSize;
+        int gridLeft = this.leftPos + MultiItemFrameMenu.GRID_ORIGIN_X;
+        int gridTop = this.topPos + MultiItemFrameMenu.GRID_ORIGIN_Y;
+        int midX = gridLeft + MultiItemFrameMenu.CELL_WIDTH;
+        int midY = gridTop + MultiItemFrameMenu.CELL_HEIGHT;
+        int gridRight = gridLeft + MultiItemFrameMenu.CELL_WIDTH * 2;
+        int gridBottom = gridTop + MultiItemFrameMenu.CELL_HEIGHT * 2;
+
+        if (size.hasHorizontalDivider()) {
+            guiGraphics.fill(gridLeft, midY, gridRight, midY + GRID_DIVIDER_THICKNESS, GRID_DIVIDER_COLOR);
+        }
+        if (size.hasVerticalDivider(0)) {
+            guiGraphics.fill(midX, gridTop, midX + GRID_DIVIDER_THICKNESS, midY, GRID_DIVIDER_COLOR);
+        }
+        if (size.hasVerticalDivider(1)) {
+            guiGraphics.fill(midX, midY, midX + GRID_DIVIDER_THICKNESS, gridBottom, GRID_DIVIDER_COLOR);
         }
     }
 

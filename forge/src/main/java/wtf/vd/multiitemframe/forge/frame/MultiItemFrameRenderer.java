@@ -102,8 +102,14 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // rendered frame itself larger than one block.
         final float halfWidth = FOOTPRINT_HALF;
         final float halfHeight = FOOTPRINT_HALF;
-        float baseCellWidth = 1.0F / size.columns();
-        float baseCellHeight = 1.0F / size.rows();
+        // Cell size as a fraction of the *shrunk* footprint (halfWidth/halfHeight * 2), not of a
+        // full 1.0-block face: using 1.0F / columns() here (as if the frame were still a full
+        // block wide) made every content layer (background/highlight/item) sized/positioned for
+        // the pre-shrink footprint, so slots - and even a single 1x1 frame's own full-cell content -
+        // rendered up to (1.0 - 12/16) = 0.25 block wider/taller than the frame's own box,
+        // overflowing past its edges on every side.
+        float baseCellWidth = (halfWidth * 2.0F) / size.columns();
+        float baseCellHeight = (halfHeight * 2.0F) / size.rows();
 
         // Glow and non-glow variants share identical textures - the only difference is
         // GLOW_LIGHT_LEVEL forced via getBlockLightLevel() above.

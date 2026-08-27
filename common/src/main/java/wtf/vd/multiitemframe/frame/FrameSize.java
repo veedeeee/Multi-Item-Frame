@@ -73,6 +73,34 @@ public enum FrameSize {
         return slotPositions[slotIndex];
     }
 
+    /**
+     * Whether the settings GUI should draw a divider line between this size's two grid rows
+     * (present whenever it actually has 2 distinct rows of slots, matching the
+     * {@code gui/main_gui_*_placeholder.png} reference layouts - see {@code MultiItemFrameMenu}'s
+     * grid constants doc comment).
+     */
+    public boolean hasHorizontalDivider() {
+        return rows == 2;
+    }
+
+    /**
+     * Whether the settings GUI should draw a divider line between the two grid columns within
+     * grid row {@code row} (0 or 1). {@code false} when that row is occupied by a single slot
+     * spanning both columns (the lone "1"-side slot of {@link #ONE_AND_TWO}/{@link #TWO_AND_ONE},
+     * marked by its {@code 0.5} column position) rather than two separate side-by-side slots.
+     */
+    public boolean hasVerticalDivider(int row) {
+        if (columns != 2) {
+            return false;
+        }
+        for (double[] pos : slotPositions) {
+            if ((int) pos[1] == row && pos[0] != Math.floor(pos[0])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static FrameSize byId(String id) {
         for (FrameSize size : values()) {
             if (size.id.equals(id)) {

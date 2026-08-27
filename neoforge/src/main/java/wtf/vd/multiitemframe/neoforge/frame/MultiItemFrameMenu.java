@@ -44,10 +44,12 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
      * {@code gui/button_stack.png}) which is centered within however many grid cells a slot's
      * {@link FrameSize#columnSpan()}/{@link FrameSize#rowSpan()} spans.</p>
      */
-    private static final int GRID_ORIGIN_X = 7;
-    private static final int GRID_ORIGIN_Y = 7;
-    private static final int CELL_WIDTH = 80;
-    private static final int CELL_HEIGHT = 36;
+    /** Package-private (not private): also used by {@code MultiItemFrameScreen} to draw the
+     *  grid divider lines shown in the {@code gui/main_gui_*_placeholder.png} reference layouts. */
+    static final int GRID_ORIGIN_X = 7;
+    static final int GRID_ORIGIN_Y = 7;
+    static final int CELL_WIDTH = 80;
+    static final int CELL_HEIGHT = 36;
     private static final int GROUP_WIDTH = 60;
     private static final int GROUP_HEIGHT = 18;
 
@@ -70,11 +72,14 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
 
     private final Container frameContainer;
     public final int slotCount;
+    /** Also used by {@code MultiItemFrameScreen} to know which grid divider lines to draw. */
+    public final FrameSize frameSize;
 
     public MultiItemFrameMenu(int containerId, Inventory playerInventory, MultiItemFrameEntity frame) {
         super(ModMenus.MULTI_ITEM_FRAME_MENU.get(), containerId);
         this.frameContainer = frame;
         FrameSize size = frame.getFrameSize();
+        this.frameSize = size;
         this.slotCount = size.slotCount();
 
         for (int i = 0; i < this.slotCount; i++) {
