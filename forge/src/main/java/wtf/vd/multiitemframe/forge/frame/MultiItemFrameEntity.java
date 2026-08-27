@@ -130,14 +130,18 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     // more than one block). Scaling this with FrameSize was a bug: it made placement require a 2x2/1x2
     // clearance and perturbed HangingEntity's wall-flush centering math (which depends on
     // width/height), causing non-1x1 frames to render at a shifted position after being placed.
+    // 12 (not 16) matches vanilla ItemFrame's own getWidth()/getHeight() and the renderer's
+    // FOOTPRINT_HALF (12/16 block visual size): without this, the interaction/collision box was a
+    // full 1x1 block, so - unlike vanilla frames - the player could never click past the frame's
+    // corners to target the block mounted behind it.
     @Override
     public int getWidth() {
-        return 16;
+        return 12;
     }
 
     @Override
     public int getHeight() {
-        return 16;
+        return 12;
     }
 
     // --- Container (slot storage backing the GUI) ---
@@ -208,7 +212,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     @Override
     public Component getDisplayName() {
-        return this.getType().getDescription();
+        return this.getFrameItemStack().getHoverName();
     }
 
     @Nullable
@@ -268,10 +272,11 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     }
 
     protected ItemStack getFrameItemStack() {
+        String itemId = this instanceof GlowMultiItemFrameEntity
+                ? wtf.vd.multiitemframe.MultiItemFrame.glowFrameItemId(this.getFrameSize())
+                : wtf.vd.multiitemframe.MultiItemFrame.frameItemId(this.getFrameSize());
         return new ItemStack(net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(
-                new net.minecraft.resources.ResourceLocation(
-                        wtf.vd.multiitemframe.MultiItemFrame.MOD_ID,
-                        wtf.vd.multiitemframe.MultiItemFrame.frameItemId(this.getFrameSize()))));
+                new net.minecraft.resources.ResourceLocation(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, itemId)));
     }
 
     @Override

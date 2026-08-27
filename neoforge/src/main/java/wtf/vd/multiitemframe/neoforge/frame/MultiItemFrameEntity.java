@@ -193,7 +193,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     @Override
     public Component getDisplayName() {
-        return this.getType().getDescription();
+        return this.getFrameItemStack().getHoverName();
     }
 
     @Nullable
@@ -232,14 +232,19 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     // 2x2/1x2 clearance and perturbed the wall-flush centering math (which depends on width/height
     // via the axis-perpendicular size), causing non-1x1 frames to render at a shifted position
     // after being placed.
+    // 0.75 (not 1.0) matches vanilla ItemFrame's 12/16 visual size and the renderer's
+    // FOOTPRINT_HALF: without this, the interaction/collision box was a full 1x1 block, so -
+    // unlike vanilla frames - the player could never click past the frame's corners to target the
+    // block mounted behind it.
     @Override
     protected AABB calculateBoundingBox(BlockPos pos, Direction direction) {
         float depth = 0.0625F;
+        float footprint = 0.75F;
         Vec3 center = Vec3.atCenterOf(pos).relative(direction, -0.46875);
         Direction.Axis axis = direction.getAxis();
-        double sizeX = axis == Direction.Axis.X ? depth : 1.0;
-        double sizeY = axis == Direction.Axis.Y ? depth : 1.0;
-        double sizeZ = axis == Direction.Axis.Z ? depth : 1.0;
+        double sizeX = axis == Direction.Axis.X ? depth : footprint;
+        double sizeY = axis == Direction.Axis.Y ? depth : footprint;
+        double sizeZ = axis == Direction.Axis.Z ? depth : footprint;
         return AABB.ofSize(center, sizeX, sizeY, sizeZ);
     }
 
@@ -271,10 +276,12 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     }
 
     protected ItemStack getFrameItemStack() {
+        String itemId = this instanceof GlowMultiItemFrameEntity
+                ? wtf.vd.multiitemframe.MultiItemFrame.glowFrameItemId(this.getFrameSize())
+                : wtf.vd.multiitemframe.MultiItemFrame.frameItemId(this.getFrameSize());
         return new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(
                 net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
-                        wtf.vd.multiitemframe.MultiItemFrame.MOD_ID,
-                        wtf.vd.multiitemframe.MultiItemFrame.frameItemId(this.getFrameSize()))));
+                        wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, itemId)));
     }
 
     @Override

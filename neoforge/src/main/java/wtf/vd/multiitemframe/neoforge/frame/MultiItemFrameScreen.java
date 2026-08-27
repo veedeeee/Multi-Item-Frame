@@ -29,6 +29,15 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
             ResourceLocation.fromNamespaceAndPath(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/main_gui_background.png");
     private static final ResourceLocation ITEM_SLOT_BACKGROUND =
             ResourceLocation.fromNamespaceAndPath(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/item_slot_background.png");
+    // base.png's bevel colors, replicated with solid fills instead of blitting the texture:
+    // GuiGraphics has no public stretched-blit for ResourceLocation textures (only 1:1 unscaled -
+    // see the BACKGROUND blit note below), so blitting a 256x256 texture into an arbitrary-size
+    // rect either tiles or squishes it; since base.png's border is just flat color bands (no
+    // pattern), drawing it as fills instead gets an identical result at any panel size/GUI Scale.
+    private static final int BASE_BORDER_COLOR = 0xFF000000;
+    private static final int BASE_HIGHLIGHT_COLOR = 0xFFFFFFFF;
+    private static final int BASE_SHADOW_COLOR = 0xFF434343;
+    private static final int BASE_FILL_COLOR = 0xFFBEBEBE;
 
     /** Gap (px) between the item slot and the mode button, and between the mode and color buttons. */
     private static final int BUTTON_GAP = 3;
@@ -167,6 +176,9 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
+        // base.png's bevel first: a fully opaque bordered panel behind everything, so BACKGROUND's
+        // transparent settings-viewport area shows this instead of the raw game world.
+        drawBasePanel(guiGraphics, this.leftPos, this.topPos, this.imageWidth, this.imageHeight);
         // Only the top-left 176x166 region of the 333x256 atlas holds the actual panel artwork
         // (the rest is transparent padding) - sample just that region at 1:1 scale rather than
         // stretching the whole 333x256 canvas into the 176x166 destination, which squished the
@@ -177,5 +189,24 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
             guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x, this.topPos + itemSlot.y,
                     0, 0, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE);
         }
+    }
+
+    /**
+     * Draws {@code base.png}'s bevel (1px black outline, 2px light highlight on the top/left inner
+     * edge, 2px dark shadow on the bottom/right inner edge, flat gray fill) as solid rectangles
+     * instead of blitting the texture - see the {@code BASE_*_COLOR} fields' comment for why.
+     */
+    private static void drawBasePanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
+        guiGraphics.fill(x, y, x + width, y + height, BASE_BORDER_COLOR);
+        guiGraphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, BASE_HIGHLIGHT_COLOR);
+        guiGraphics.fill(x + 3, y + 3, x + width - 1, y + height - 1, BASE_SHADOW_COLOR);
+        guiGraphics.fill(x + 3, y + 3, x + width - 3, y + height - 3, BASE_FILL_COLOR);
+    }
+
+    /** Hides the default "Multi Item Frame" title and "Inventory" labels - the panel's own
+     *  artwork ({@link #BACKGROUND}) already reads as a settings/inventory panel without them,
+     *  and there's no room to lay them out cleanly across all frame sizes. */
+    @Override
+    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
     }
 }
