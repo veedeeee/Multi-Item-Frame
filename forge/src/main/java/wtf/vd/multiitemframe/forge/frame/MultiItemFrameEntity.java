@@ -305,7 +305,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     // --- Settings copy (shared contract for AE2 Memory Card / Mekanism Configuration Card, see ch.5) ---
 
-    /** Snapshot of copyable settings (background + per-slot highlight mode/color); excludes displayed items. */
+    /** Snapshot of copyable settings (background + per-slot displayed item, highlight mode/color). */
     public CompoundTag copySettings() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("ShowBackground", this.isBackgroundVisible());
@@ -313,6 +313,10 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         ListTag slotSettings = new ListTag();
         for (int i = 0; i < slotCount; i++) {
             CompoundTag slotTag = new CompoundTag();
+            ItemStack stack = this.getItem(i);
+            if (!stack.isEmpty()) {
+                slotTag.put("Item", stack.save(new CompoundTag()));
+            }
             slotTag.putByte("Mode", (byte) this.getHighlightMode(i).ordinal());
             DyeColor color = this.getHighlightColor(i);
             slotTag.putByte("Color", (byte) (color == null ? -1 : color.getId()));
@@ -336,6 +340,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         int slotCount = Math.min(slotSettings.size(), this.getFrameSize().slotCount());
         for (int i = 0; i < slotCount; i++) {
             CompoundTag slotTag = slotSettings.getCompound(i);
+            ItemStack stack = slotTag.contains("Item") ? ItemStack.of(slotTag.getCompound("Item")) : ItemStack.EMPTY;
+            this.setItem(i, stack);
             this.getEntityData().set(DATA_MODES[i], slotTag.getByte("Mode"));
             this.getEntityData().set(DATA_COLORS[i], slotTag.contains("Color") ? slotTag.getByte("Color") : (byte) -1);
         }
