@@ -167,7 +167,11 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0, 0, 333, 256, 333, 256);
+        // Only the top-left 176x166 region of the 333x256 atlas holds the actual panel artwork
+        // (the rest is transparent padding) - sample just that region at 1:1 scale rather than
+        // stretching the whole 333x256 canvas into the 176x166 destination, which squished the
+        // artwork and made it look inconsistent across GUI Scale settings.
+        guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 333, 256);
         for (int slot = 0; slot < this.menu.slotCount; slot++) {
             Slot itemSlot = this.menu.getSlot(slot);
             guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x, this.topPos + itemSlot.y,

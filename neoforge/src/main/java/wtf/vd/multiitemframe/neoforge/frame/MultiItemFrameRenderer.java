@@ -39,10 +39,11 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
     private static final float THICKNESS = 0.0625F;
     private static final float HALF_THICKNESS = THICKNESS / 2.0F;
     /** Forward step (blocks) between stacked decal layers so they don't z-fight each other.
-     *  Must be large enough to stay resolvable in the depth buffer at normal viewing distances -
-     *  0.002 (the original value) was too small and caused inconsistent front/back z-fighting
-     *  between the frame's own front face and the background/highlight/item layers stacked on it. */
-    private static final float LAYER_STEP = 0.03F;
+     *  Kept as small as possible while still avoiding depth-buffer precision issues: the previous
+     *  0.03 value (needed back when content stacked toward the frame's front face) made the
+     *  background/highlight/item layers visibly float off the back face at grazing/side viewing
+     *  angles now that they stack toward it instead. */
+    private static final float LAYER_STEP = 0.004F;
     /** Item icons render at vanilla Item Frame scale (0.5) within a full 1x1 cell; multi-slot
      *  frames additionally shrink by each cell's own share of the single-block frame (see
      *  {@code render()}) so items never overflow their smaller cell. */
@@ -130,11 +131,13 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
             DyeColor color = entity.getHighlightColor(slot);
             if (color != null) {
                 int rgb = color.getFireworkColor();
-                ResourceLocation overlay = mode == HighlightMode.FRAME
-                        ? HIGHLIGHT_FRAME_TEXTURE
-                        : HIGHLIGHT_FILL_TEXTURE;
-                renderQuad(poseStack, buffer, overlay, left, top - cellHeight, left + cellWidth, top, depth,
-                        0xFF000000 | rgb, packedLight, -1.0F);
+                if (mode == HighlightMode.FRAME) {
+                    renderHighlightFrameBorder(poseStack, buffer, left, top - cellHeight, left + cellWidth, top,
+                            depth, 0xFF000000 | rgb, packedLight);
+                } else {
+                    renderQuad(poseStack, buffer, HIGHLIGHT_FILL_TEXTURE, left, top - cellHeight, left + cellWidth,
+                            top, depth, 0xFF000000 | rgb, packedLight, -1.0F);
+                }
             }
 
             ItemStack stack = entity.getItem(slot);
@@ -191,6 +194,19 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      */
     private static void renderQuad(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
             float x0, float y0, float x1, float y1, float z, int argbColor, int packedLight, float normalZ) {
+        renderQuad(poseStack, buffer, texture, x0, y0, x1, y1, z, 0.0F, 0.0F, 1.0F, 1.0F, argbColor, packedLight,
+                normalZ);
+    }
+
+    /**
+     * Same as {@link #renderQuad(PoseStack, MultiBufferSource, ResourceLocation, float, float, float, float, float,
+     * int, int, float)} but with explicit texture UV bounds, so a quad can sample a sub-region of its texture
+     * instead of always stretching the whole thing across it (used to draw fixed-pixel-width highlight borders -
+     * see {@link #renderHighlightFrameBorder}).
+     */
+    private static void renderQuad(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
+            float x0, float y0, float x1, float y1, float z, float u0, float v0, float u1, float v1, int argbColor,
+            int packedLight, float normalZ) {
         VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutoutNoCull(texture));
         PoseStack.Pose pose = poseStack.last();
         int a = (argbColor >>> 24) & 0xFF;
@@ -199,16 +215,43 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         int b = argbColor & 0xFF;
 
         if (normalZ > 0) {
-            vertex(consumer, pose, x1, y1, z, 1.0F, 0.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x0, y1, z, 0.0F, 0.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x0, y0, z, 0.0F, 1.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x1, y0, z, 1.0F, 1.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x1, y1, z, u1, v0, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x0, y1, z, u0, v0, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x0, y0, z, u0, v1, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x1, y0, z, u1, v1, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
         } else {
-            vertex(consumer, pose, x1, y0, z, 1.0F, 1.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x0, y0, z, 0.0F, 1.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x0, y1, z, 0.0F, 0.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
-            vertex(consumer, pose, x1, y1, z, 1.0F, 0.0F, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x1, y0, z, u1, v1, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x0, y0, z, u0, v1, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x0, y1, z, u0, v0, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
+            vertex(consumer, pose, x1, y1, z, u1, v0, r, g, b, a, 0.0F, 0.0F, normalZ, packedLight);
         }
+    }
+
+    /** Physical width (blocks) of each highlight-frame border stroke; 1px, matching {@link #THICKNESS}'s unit. */
+    private static final float HIGHLIGHT_BORDER_PX = 1.0F / 16.0F;
+    /** UV fraction of {@link #HIGHLIGHT_FRAME_TEXTURE} guaranteed to be solid border color (its outer 2 of 16
+     *  texels on every edge) - sampling only this corner lets every border stroke be a fixed physical pixel
+     *  width regardless of the cell's aspect ratio. */
+    private static final float HIGHLIGHT_FRAME_SOLID_UV = 0.125F;
+
+    /**
+     * Draws {@link #HIGHLIGHT_FRAME_TEXTURE}'s border as 4 separate strips, each a fixed
+     * {@link #HIGHLIGHT_BORDER_PX} thick, instead of stretching a single quad across the whole cell. Stretching
+     * a single quad made the texture's border scale anisotropically on non-square cells (e.g. 1x2/2x1 frames),
+     * ending up 2px thick on the cell's short edges and 1px on its long edges instead of a uniform 1px everywhere.
+     */
+    private static void renderHighlightFrameBorder(PoseStack poseStack, MultiBufferSource buffer, float x0, float y0,
+            float x1, float y1, float z, int argbColor, int packedLight) {
+        float t = HIGHLIGHT_BORDER_PX;
+        float uv = HIGHLIGHT_FRAME_SOLID_UV;
+        renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y1 - t, x1, y1, z, 0.0F, 0.0F, uv, uv, argbColor,
+                packedLight, -1.0F); // top
+        renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y0, x1, y0 + t, z, 0.0F, 0.0F, uv, uv, argbColor,
+                packedLight, -1.0F); // bottom
+        renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y0 + t, x0 + t, y1 - t, z, 0.0F, 0.0F, uv, uv,
+                argbColor, packedLight, -1.0F); // left
+        renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x1 - t, y0 + t, x1, y1 - t, z, 0.0F, 0.0F, uv, uv,
+                argbColor, packedLight, -1.0F); // right
     }
 
     private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float z,
