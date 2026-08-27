@@ -29,15 +29,19 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
             new ResourceLocation(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/main_gui_background.png");
     private static final ResourceLocation ITEM_SLOT_BACKGROUND =
             new ResourceLocation(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/item_slot_background.png");
-    // base.png's bevel colors, replicated with solid fills instead of blitting the texture: 1.20.1's
-    // GuiGraphics has no public stretched-blit for ResourceLocation textures (only 1:1 unscaled -
-    // see the BACKGROUND blit note below), so blitting a 256x256 texture into an arbitrary-size
-    // rect either tiles or squishes it; since base.png's border is just flat color bands (no
-    // pattern), drawing it as fills instead gets an identical result at any panel size/GUI Scale.
-    private static final int BASE_BORDER_COLOR = 0xFF000000;
-    private static final int BASE_HIGHLIGHT_COLOR = 0xFFFFFFFF;
-    private static final int BASE_SHADOW_COLOR = 0xFF434343;
-    private static final int BASE_FILL_COLOR = 0xFFBEBEBE;
+    /** {@code main_gui_background.png}'s settings viewport is a transparent rectangular hole (its
+     *  own border/bevel is already baked into the surrounding artwork, including the panel's
+     *  rounded top corners) - pixel-measured bounds of that hole within the 176x166 panel, used
+     *  to backstop it with a flat fill so the game world doesn't show through. Filling only this
+     *  rect (rather than the whole panel) avoids covering/squaring off the artwork's rounded
+     *  corners with a solid rectangle. Fill color (198,198,198) matches the border/bevel tone
+     *  sampled directly from the same texture, so there's no visible seam between the backstop
+     *  and the surrounding artwork. */
+    private static final int VIEWPORT_LEFT = 7;
+    private static final int VIEWPORT_TOP = 8;
+    private static final int VIEWPORT_WIDTH = 162;
+    private static final int VIEWPORT_HEIGHT = 71;
+    private static final int VIEWPORT_FILL_COLOR = 0xFFC6C6C6;
     /** Grid divider line color/thickness, matching the {@code gui/main_gui_*_placeholder.png}
      *  reference layouts' 1px mid-gray lines (sampled: RGB 135,135,135). */
     private static final int GRID_DIVIDER_COLOR = 0xFF878787;
@@ -49,6 +53,11 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
     /** Item slots are vanilla's usual 16px icon, in an 18px-wide cell (same width as a button). */
     private static final int ITEM_SLOT_ICON_SIZE = 16;
     private static final int ITEM_SLOT_CELL_SIZE = 18;
+    /** {@code item_slot_background.png} is a full 18x18 cell (matching the mode/color buttons'
+     *  size), drawn 1px up/left of the 16x16 icon position so the icon sits centered within it -
+     *  the same convention vanilla inventory slots use. */
+    private static final int ITEM_SLOT_BG_SIZE = 18;
+    private static final int ITEM_SLOT_BG_INSET = 1;
 
     public MultiItemFrameScreen(MultiItemFrameMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -178,9 +187,13 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        // base.png's bevel first: a fully opaque bordered panel behind everything, so BACKGROUND's
-        // transparent settings-viewport area shows this instead of the raw game world.
-        drawBasePanel(guiGraphics, this.leftPos, this.topPos, this.imageWidth, this.imageHeight);
+        // Backstop the settings viewport's transparent hole with a flat fill matching the
+        // surrounding artwork's tone, so the game world doesn't show through it - see the
+        // VIEWPORT_* fields' comment for why this is scoped to just the hole rather than the
+        // whole panel.
+        guiGraphics.fill(this.leftPos + VIEWPORT_LEFT, this.topPos + VIEWPORT_TOP,
+                this.leftPos + VIEWPORT_LEFT + VIEWPORT_WIDTH, this.topPos + VIEWPORT_TOP + VIEWPORT_HEIGHT,
+                VIEWPORT_FILL_COLOR);
         // Only the top-left 176x166 region of the 333x256 atlas holds the actual panel artwork
         // (the rest is transparent padding) - sample just that region at 1:1 scale rather than
         // stretching the whole 333x256 canvas into the 176x166 destination, which squished the
@@ -189,8 +202,9 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         this.drawGridDividers(guiGraphics);
         for (int slot = 0; slot < this.menu.slotCount; slot++) {
             Slot itemSlot = this.menu.getSlot(slot);
-            guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x, this.topPos + itemSlot.y,
-                    0, 0, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE);
+            guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x - ITEM_SLOT_BG_INSET,
+                    this.topPos + itemSlot.y - ITEM_SLOT_BG_INSET, 0, 0, ITEM_SLOT_BG_SIZE, ITEM_SLOT_BG_SIZE,
+                    ITEM_SLOT_BG_SIZE, ITEM_SLOT_BG_SIZE);
         }
     }
 
@@ -219,18 +233,6 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         if (size.hasVerticalDivider(1)) {
             guiGraphics.fill(midX, midY, midX + GRID_DIVIDER_THICKNESS, gridBottom, GRID_DIVIDER_COLOR);
         }
-    }
-
-    /**
-     * Draws {@code base.png}'s bevel (1px black outline, 2px light highlight on the top/left inner
-     * edge, 2px dark shadow on the bottom/right inner edge, flat gray fill) as solid rectangles
-     * instead of blitting the texture - see the {@code BASE_*_COLOR} fields' comment for why.
-     */
-    private static void drawBasePanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
-        guiGraphics.fill(x, y, x + width, y + height, BASE_BORDER_COLOR);
-        guiGraphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, BASE_HIGHLIGHT_COLOR);
-        guiGraphics.fill(x + 3, y + 3, x + width - 1, y + height - 1, BASE_SHADOW_COLOR);
-        guiGraphics.fill(x + 3, y + 3, x + width - 3, y + height - 3, BASE_FILL_COLOR);
     }
 
     /** Hides the default "Multi Item Frame" title and "Inventory" labels - the panel's own

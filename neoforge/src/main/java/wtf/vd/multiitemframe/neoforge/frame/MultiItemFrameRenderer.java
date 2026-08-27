@@ -37,12 +37,6 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
     /** Physical thickness of the frame (1px = 1/16 block), matching vanilla Item Frame's thin panel. */
     private static final float THICKNESS = 0.0625F;
     private static final float HALF_THICKNESS = THICKNESS / 2.0F;
-    /** Forward step (blocks) between stacked decal layers so they don't z-fight each other.
-     *  Kept as small as possible while still avoiding depth-buffer precision issues: the previous
-     *  0.03 value (needed back when content stacked toward the frame's front face) made the
-     *  background/highlight/item layers visibly float off the back face at grazing/side viewing
-     *  angles now that they stack toward it instead. */
-    private static final float LAYER_STEP = 0.004F;
     /** Item icons render at vanilla Item Frame scale (0.5) within a full 1x1 cell; multi-slot
      *  frames additionally shrink by each cell's own share of the single-block frame (see
      *  {@code render()}) so items never overflow their smaller cell. */
@@ -128,7 +122,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // Rather than re-deriving the exact winding/axis reason (previous attempts at that kind
         // of reasoning didn't match real behavior), the layers are simply stacked toward -Z,
         // which was verified to put them on the correct/open side.
-        float depth = -(HALF_THICKNESS + LAYER_STEP);
+        //
+        // All content layers (background/highlight/item) are drawn at the exact same depth as the
+        // frame's own back face (-HALF_THICKNESS) rather than offset further behind it: an earlier
+        // version pushed each layer back by a small LAYER_STEP to dodge z-fighting, but any nonzero
+        // offset is a real 3D gap that reads as visibly detached, floating panels at grazing/side
+        // viewing angles. RenderType.entityCutoutNoCull uses a LEQUAL depth test, so coincident
+        // quads drawn in back-to-front order (background, then highlight, then item) simply
+        // overdraw each other with no gap and no z-fighting flicker.
+        float depth = -HALF_THICKNESS;
 
         if (entity.isBackgroundVisible()) {
             for (int slot = 0; slot < size.slotCount(); slot++) {
@@ -140,7 +142,6 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellH, left + cellW, top,
                         depth, 0xFFFFFFFF, packedLight, -1.0F);
             }
-            depth -= LAYER_STEP;
         }
 
         for (int slot = 0; slot < size.slotCount(); slot++) {
@@ -171,7 +172,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 // lone slot - see slotBounds) cell.
                 float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
                 poseStack.pushPose();
-                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth - LAYER_STEP);
+                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
