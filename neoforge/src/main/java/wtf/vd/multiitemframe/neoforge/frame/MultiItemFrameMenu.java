@@ -147,7 +147,11 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         if (slotId >= 0 && slotId < this.slotCount) {
             if (button == 2) {
-                this.frameContainer.setItem(slotId, ItemStack.EMPTY);
+                if (this.frameContainer instanceof MultiItemFrameEntity frame) {
+                    frame.clearDisplay(slotId);
+                } else {
+                    this.frameContainer.setItem(slotId, ItemStack.EMPTY);
+                }
             } else {
                 ItemStack carried = this.getCarried();
                 if (!carried.isEmpty()) {

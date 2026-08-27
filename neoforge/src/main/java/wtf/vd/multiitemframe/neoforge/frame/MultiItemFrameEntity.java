@@ -190,7 +190,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     @Override
     public ItemStack removeItem(int slot, int amount) {
         ItemStack result = this.getItem(slot).copyWithCount(amount);
-        this.setItem(slot, ItemStack.EMPTY);
+        this.clearDisplay(slot);
         return result;
     }
 
@@ -205,10 +205,34 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     @Override
     public void setItem(int slot, ItemStack stack) {
+        if (stack.isEmpty() && this.getItem(slot).isEmpty()) {
+            // Vanilla's own slot-sync plumbing (e.g. the ClientboundContainerSetContentPacket
+            // applied via Slot#set whenever the GUI is (re)opened) calls this with an empty stack
+            // purely to mirror what's already here. For a Fluid/Chemical/Energy slot - whose
+            // displayed item is always empty by design (see #setDisplayContent) - blindly
+            // resetting the content kind here made that content vanish from the GUI every time it
+            // was reopened, even though nothing actually changed. Explicit "clear this slot" goes
+            // through #clearDisplay instead (see MultiItemFrameMenu#clicked's middle-click branch).
+            return;
+        }
         if (!stack.isEmpty()) {
             stack = stack.copyWithCount(1);
         }
         this.getEntityData().set(DATA_ITEMS[slot], stack);
+        this.getEntityData().set(DATA_CONTENT_KINDS[slot], (byte) DisplayContentKind.ITEM.ordinal());
+        this.getEntityData().set(DATA_CONTENT_IDS[slot], "");
+        this.setChanged();
+    }
+
+    /**
+     * Clears a slot back to "no content", regardless of what kind of content (item or
+     * Fluid/Chemical/Energy) was previously displayed - unlike {@link #setItem}, this always
+     * resets the content kind/id even when the item was already empty. Used for explicit clear
+     * gestures (middle-click, {@link #removeItem}) so they aren't swallowed by {@link #setItem}'s
+     * no-op guard.
+     */
+    public void clearDisplay(int slot) {
+        this.getEntityData().set(DATA_ITEMS[slot], ItemStack.EMPTY);
         this.getEntityData().set(DATA_CONTENT_KINDS[slot], (byte) DisplayContentKind.ITEM.ordinal());
         this.getEntityData().set(DATA_CONTENT_IDS[slot], "");
         this.setChanged();
