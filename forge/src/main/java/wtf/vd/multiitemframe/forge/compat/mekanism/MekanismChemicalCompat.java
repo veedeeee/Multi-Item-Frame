@@ -80,6 +80,13 @@ public final class MekanismChemicalCompat {
         return chemical == null ? null : chemical.getIcon();
     }
 
+    /** Display name of a Gas/Infusion/Pigment/Slurry content id (used by the Jade tooltip
+     *  provider - see {@code compat.jade}), or {@code null} if the id is no longer registered. */
+    public static net.minecraft.network.chat.Component getName(DisplayContentKind kind, String id) {
+        Chemical<?> chemical = resolveChemical(kind, id);
+        return chemical == null ? null : chemical.getTextComponent();
+    }
+
     /** RGB tint (no alpha) for a Gas/Infusion/Pigment/Slurry content id, white (no tint) if unresolved. */
     public static int getTint(DisplayContentKind kind, String id) {
         Chemical<?> chemical = resolveChemical(kind, id);

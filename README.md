@@ -15,6 +15,7 @@ This mod adds some Item Frames which has a few features.
 - Copy the settings and paste to another with;
   - **Memory Card** from AE2 (`ae2:memory_card`)
   - **Configuration Card** from Mekanism (`mekanism:configuration_card`)
+- Shows the frame's contents (item / Fluid / Chemical / Energy) in **Jade**'s tooltip when looked at.
 
 
 ## Items
@@ -92,6 +93,7 @@ N/A
 - [Applied Energistics 2](https://www.curseforge.com/minecraft/mc-mods/applied-energistics-2)
 - [Just Enough Items (JEI)](https://www.curseforge.com/minecraft/mc-mods/jei)
 - [Mekanism](https://www.curseforge.com/minecraft/mc-mods/mekanism)
+- [Jade](https://www.curseforge.com/minecraft/mc-mods/jade)
 
 ## Supported targets
 | Module         | Mod Loader | Minecraft |

@@ -20,5 +20,6 @@
   "gui.multiitemframe.color_tooltip": "Left-click to cycle color, Middle-click to erase",
   "gui.multiitemframe.config_card_saved": "Frame settings saved to card",
   "gui.multiitemframe.config_card_loaded": "Frame settings loaded from card",
-  "gui.multiitemframe.config_card_invalid": "Card has no Multi Item Frame data"
+  "gui.multiitemframe.config_card_invalid": "Card has no Multi Item Frame data",
+  "jade.multiitemframe.energy": "Energy"
 }
