@@ -307,8 +307,9 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     public CompoundTag copySettings() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("ShowBackground", this.isBackgroundVisible());
+        int slotCount = this.getFrameSize().slotCount();
         ListTag slotSettings = new ListTag();
-        for (int i = 0; i < FrameSize.MAX_SLOTS; i++) {
+        for (int i = 0; i < slotCount; i++) {
             CompoundTag slotTag = new CompoundTag();
             slotTag.putByte("Mode", (byte) this.getHighlightMode(i).ordinal());
             DyeColor color = this.getHighlightColor(i);
@@ -319,11 +320,19 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         return tag;
     }
 
-    /** Applies a snapshot produced by {@link #copySettings()} onto this frame. */
+    /**
+     * Applies a snapshot produced by {@link #copySettings()} onto this frame. Slots are matched by
+     * index - slot 0 is always the top-left-most slot and the last index is always the
+     * bottom-right-most slot, in reading order (see {@link FrameSize#slotPosition}) - up to
+     * however many slots both the source and this frame have in common: if the source frame had
+     * fewer slots than this one, this frame's remaining slots are left untouched (not reset to
+     * defaults); if the source had more, the extras are simply ignored.
+     */
     public void pasteSettings(CompoundTag tag) {
         this.getEntityData().set(DATA_BACKGROUND, !tag.contains("ShowBackground") || tag.getBoolean("ShowBackground"));
         ListTag slotSettings = tag.getList("Slots", 10);
-        for (int i = 0; i < Math.min(slotSettings.size(), FrameSize.MAX_SLOTS); i++) {
+        int slotCount = Math.min(slotSettings.size(), this.getFrameSize().slotCount());
+        for (int i = 0; i < slotCount; i++) {
             CompoundTag slotTag = slotSettings.getCompound(i);
             this.getEntityData().set(DATA_MODES[i], slotTag.getByte("Mode"));
             this.getEntityData().set(DATA_COLORS[i], slotTag.contains("Color") ? slotTag.getByte("Color") : (byte) -1);

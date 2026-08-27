@@ -109,7 +109,8 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         if (entity.isBackgroundVisible()) {
             for (int slot = 0; slot < size.slotCount(); slot++) {
                 double[] gridPos = size.slotPosition(slot);
-                float left = -halfWidth + (float) gridPos[0] * cellWidth;
+                // Mirrored horizontally (see the comment on the item/highlight loop below for why).
+                float left = halfWidth - (float) gridPos[0] * cellWidth - cellWidth;
                 float top = halfHeight - (float) gridPos[1] * cellHeight;
                 renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellHeight, left + cellWidth, top,
                         depth, 0xFFFFFFFF, packedLight, -1.0F);
@@ -124,7 +125,14 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
 
         for (int slot = 0; slot < size.slotCount(); slot++) {
             double[] gridPos = size.slotPosition(slot);
-            float left = -halfWidth + (float) gridPos[0] * cellWidth;
+            // The X axis is mirrored (right-to-left instead of left-to-right) compared to
+            // gridPos[0]'s literal value: turning the -Z sign flip (see depth's comment above)
+            // means the viewer on the accessible side is now facing the opposite way along Z
+            // from what these local coordinates were originally authored for, which mirrors their
+            // apparent left/right (but not up/down - Y is unaffected by a turn-around along Z).
+            // Without this, slot 0 (top-left in the GUI, per FrameSize#slotPosition) would render
+            // on the viewer's right instead of their left, out of sync with the settings GUI.
+            float left = halfWidth - (float) gridPos[0] * cellWidth - cellWidth;
             float top = halfHeight - (float) gridPos[1] * cellHeight;
 
             HighlightMode mode = entity.getHighlightMode(slot);
