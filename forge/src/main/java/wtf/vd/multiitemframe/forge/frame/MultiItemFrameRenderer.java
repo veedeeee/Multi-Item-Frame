@@ -279,10 +279,10 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
 
     /** Physical width (blocks) of each highlight-frame border stroke; 1px, matching {@link #THICKNESS}'s unit. */
     private static final float HIGHLIGHT_BORDER_PX = 1.0F / 16.0F;
-    /** UV fraction of {@link #HIGHLIGHT_FRAME_TEXTURE} guaranteed to be solid border color (its outer 2 of 16
-     *  texels on every edge) - sampling only this corner lets every border stroke be a fixed physical pixel
-     *  width regardless of the cell's aspect ratio. */
-    private static final float HIGHLIGHT_FRAME_SOLID_UV = 0.125F;
+    /** UV fraction of {@link #HIGHLIGHT_FRAME_TEXTURE} guaranteed to be solid border color (its outer 1 of 12
+     *  texels on every edge, matching the 12x12 texture's 1px border) - sampling only this corner lets every
+     *  border stroke be a fixed physical pixel width regardless of the cell's aspect ratio. */
+    private static final float HIGHLIGHT_FRAME_SOLID_UV = 1.0F / 12.0F;
 
     /**
      * Draws {@link #HIGHLIGHT_FRAME_TEXTURE}'s border as 4 separate strips, each a fixed
