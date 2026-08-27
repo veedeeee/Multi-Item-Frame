@@ -134,7 +134,12 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
     public Rect2i getModeButtonArea(int slot) {
         Slot itemSlot = this.menu.getSlot(slot);
         int modeButtonX = this.leftPos + itemSlot.x + ITEM_SLOT_CELL_SIZE + BUTTON_GAP;
-        int buttonY = this.topPos + itemSlot.y;
+        // Both the item slot's 18x18 background and the 18x18 buttons should share the same
+        // vertical center as the 16x16 item icon: the background is inset by ITEM_SLOT_BG_INSET
+        // above the icon (see renderBg), so the buttons need that same inset applied to their top
+        // - using itemSlot.y directly here (without the inset) left the buttons 1px lower than
+        // the item slot's background/icon center.
+        int buttonY = this.topPos + itemSlot.y - ITEM_SLOT_BG_INSET;
         return new Rect2i(modeButtonX, buttonY, BUTTON_SIZE, BUTTON_SIZE);
     }
 

@@ -37,6 +37,12 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
     /** Physical thickness of the frame (1px = 1/16 block), matching vanilla Item Frame's thin panel. */
     private static final float THICKNESS = 0.0625F;
     private static final float HALF_THICKNESS = THICKNESS / 2.0F;
+    /** Tiny real translate applied only to the displayed item (see the {@code depth} comment in
+     *  {@code render()}: unlike the background/highlight quads, item rendering goes through the
+     *  vanilla {@code ItemRenderer} and can't be routed through a Z-offset decal RenderType, so it
+     *  needs an actual - but kept far below any perceptible-gap threshold - depth offset to avoid
+     *  z-fighting against the coincident background layer). */
+    private static final float ITEM_DEPTH_EPSILON = 0.0005F;
     /** Item icons render at vanilla Item Frame scale (0.5) within a full 1x1 cell; multi-slot
      *  frames additionally shrink by each cell's own share of the single-block frame (see
      *  {@code render()}) so items never overflow their smaller cell. */
@@ -123,13 +129,16 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // of reasoning didn't match real behavior), the layers are simply stacked toward -Z,
         // which was verified to put them on the correct/open side.
         //
-        // All content layers (background/highlight/item) are drawn at the exact same depth as the
-        // frame's own back face (-HALF_THICKNESS) rather than offset further behind it: an earlier
-        // version pushed each layer back by a small LAYER_STEP to dodge z-fighting, but any nonzero
-        // offset is a real 3D gap that reads as visibly detached, floating panels at grazing/side
-        // viewing angles. RenderType.entityCutoutNoCull uses a LEQUAL depth test, so coincident
-        // quads drawn in back-to-front order (background, then highlight, then item) simply
-        // overdraw each other with no gap and no z-fighting flicker.
+        // Background/highlight quads are drawn at the exact same world-space depth as the frame's
+        // own back face (-HALF_THICKNESS, no LAYER_STEP-style offset) - a real 3D offset there is
+        // a genuine gap that reads as a visibly detached, floating panel at grazing/side viewing
+        // angles. Instead, z-fighting against the coincident back face is avoided by drawing them
+        // with RenderType.entityCutoutNoCullZOffset (see renderQuad's `decal` parameter), which
+        // nudges the written depth value slightly toward the camera in view space (the same trick
+        // vanilla uses for block-breaking overlays) without moving the geometry itself, so there's
+        // no gap and no flicker. The item render call below can't be routed through a custom
+        // RenderType (it's drawn via the vanilla ItemRenderer, which picks its own per-model render
+        // types), so it keeps a real - but now tiny, sub-visible - translate instead.
         float depth = -HALF_THICKNESS;
 
         if (entity.isBackgroundVisible()) {
@@ -140,7 +149,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 float cellW = bounds[2];
                 float cellH = bounds[3];
                 renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellH, left + cellW, top,
-                        depth, 0xFFFFFFFF, packedLight, -1.0F);
+                        depth, 0xFFFFFFFF, packedLight, -1.0F, true);
             }
         }
 
@@ -160,7 +169,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                             depth, 0xFF000000 | rgb, packedLight);
                 } else {
                     renderQuad(poseStack, buffer, HIGHLIGHT_FILL_TEXTURE, left, top - cellH, left + cellW,
-                            top, depth, 0xFF000000 | rgb, packedLight, -1.0F);
+                            top, depth, 0xFF000000 | rgb, packedLight, -1.0F, true);
                 }
             }
 
@@ -172,7 +181,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 // lone slot - see slotBounds) cell.
                 float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
                 poseStack.pushPose();
-                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth);
+                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth - ITEM_DEPTH_EPSILON);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
@@ -216,8 +225,8 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      */
     private static void renderBox(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation faceTexture,
             ResourceLocation sideTexture, float x0, float y0, float x1, float y1, int packedLight) {
-        renderQuad(poseStack, buffer, faceTexture, x0, y0, x1, y1, HALF_THICKNESS, 0xFFFFFFFF, packedLight, 1.0F);
-        renderQuad(poseStack, buffer, faceTexture, x0, y0, x1, y1, -HALF_THICKNESS, 0xFFFFFFFF, packedLight, -1.0F);
+        renderQuad(poseStack, buffer, faceTexture, x0, y0, x1, y1, HALF_THICKNESS, 0xFFFFFFFF, packedLight, 1.0F, false);
+        renderQuad(poseStack, buffer, faceTexture, x0, y0, x1, y1, -HALF_THICKNESS, 0xFFFFFFFF, packedLight, -1.0F, false);
 
         renderSide(poseStack, buffer, sideTexture, x0, y1, x1, y1, packedLight, 0.0F, 1.0F); // top
         renderSide(poseStack, buffer, sideTexture, x1, y0, x0, y0, packedLight, 0.0F, -1.0F); // bottom
@@ -244,24 +253,31 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      * Draws a single unit-scaled quad tinted by {@code argbColor}, facing {@code +Z} when
      * {@code normalZ > 0} (visible looking toward {@code -Z}) or facing {@code -Z} when
      * {@code normalZ < 0} (visible looking toward {@code +Z}) - used to give the frame's box a
-     * back face without it being culled the same as its front face.
+     * back face without it being culled the same as its front face. {@code decal} selects
+     * {@link RenderType#entityCutoutNoCullZOffset} instead of the plain cutout type - used for
+     * the background/highlight content layers, which are drawn at the exact same world-space
+     * depth as the frame's own back face (see the {@code depth} comment in {@code render()}); the
+     * Z-offset type nudges only the written depth value slightly toward the camera (no geometry
+     * movement), so they layer on top of the coincident back face with no gap and no z-fighting.
      */
     private static void renderQuad(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
-            float x0, float y0, float x1, float y1, float z, int argbColor, int packedLight, float normalZ) {
+            float x0, float y0, float x1, float y1, float z, int argbColor, int packedLight, float normalZ,
+            boolean decal) {
         renderQuad(poseStack, buffer, texture, x0, y0, x1, y1, z, 0.0F, 0.0F, 1.0F, 1.0F, argbColor, packedLight,
-                normalZ);
+                normalZ, decal);
     }
 
     /**
      * Same as {@link #renderQuad(PoseStack, MultiBufferSource, ResourceLocation, float, float, float, float, float,
-     * int, int, float)} but with explicit texture UV bounds, so a quad can sample a sub-region of its texture
-     * instead of always stretching the whole thing across it (used to draw fixed-pixel-width highlight borders -
-     * see {@link #renderHighlightFrameBorder}).
+     * int, int, float, boolean)} but with explicit texture UV bounds, so a quad can sample a sub-region of its
+     * texture instead of always stretching the whole thing across it (used to draw fixed-pixel-width highlight
+     * borders - see {@link #renderHighlightFrameBorder}).
      */
     private static void renderQuad(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
             float x0, float y0, float x1, float y1, float z, float u0, float v0, float u1, float v1, int argbColor,
-            int packedLight, float normalZ) {
-        VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutoutNoCull(texture));
+            int packedLight, float normalZ, boolean decal) {
+        RenderType renderType = decal ? RenderType.entityCutoutNoCullZOffset(texture) : RenderType.entityCutoutNoCull(texture);
+        VertexConsumer consumer = buffer.getBuffer(renderType);
         PoseStack.Pose pose = poseStack.last();
         int a = (argbColor >>> 24) & 0xFF;
         int r = (argbColor >> 16) & 0xFF;
@@ -299,13 +315,13 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         float t = HIGHLIGHT_BORDER_PX;
         float uv = HIGHLIGHT_FRAME_SOLID_UV;
         renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y1 - t, x1, y1, z, 0.0F, 0.0F, uv, uv, argbColor,
-                packedLight, -1.0F); // top
+                packedLight, -1.0F, true); // top
         renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y0, x1, y0 + t, z, 0.0F, 0.0F, uv, uv, argbColor,
-                packedLight, -1.0F); // bottom
+                packedLight, -1.0F, true); // bottom
         renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x0, y0 + t, x0 + t, y1 - t, z, 0.0F, 0.0F, uv, uv,
-                argbColor, packedLight, -1.0F); // left
+                argbColor, packedLight, -1.0F, true); // left
         renderQuad(poseStack, buffer, HIGHLIGHT_FRAME_TEXTURE, x1 - t, y0 + t, x1, y1 - t, z, 0.0F, 0.0F, uv, uv,
-                argbColor, packedLight, -1.0F); // right
+                argbColor, packedLight, -1.0F, true); // right
     }
 
     private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float z,
