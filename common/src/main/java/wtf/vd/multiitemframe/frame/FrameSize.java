@@ -8,12 +8,14 @@ package wtf.vd.multiitemframe.frame;
  */
 public enum FrameSize {
 
-    ONE_BY_ONE("1x1", 1, 1, new int[][] { { 0, 0 } }),
-    ONE_BY_TWO("1x2", 1, 2, new int[][] { { 0, 0 }, { 0, 1 } }),
-    TWO_BY_ONE("2x1", 2, 1, new int[][] { { 0, 0 }, { 1, 0 } }),
-    ONE_AND_TWO("1and2", 2, 2, new int[][] { { 0, 0 }, { 0, 1 }, { 1, 1 } }),
-    TWO_AND_ONE("2and1", 2, 2, new int[][] { { 0, 0 }, { 1, 0 }, { 0, 1 } }),
-    TWO_BY_TWO("2x2", 2, 2, new int[][] { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } });
+    ONE_BY_ONE("1x1", 1, 1, new double[][] { { 0, 0 } }),
+    ONE_BY_TWO("1x2", 1, 2, new double[][] { { 0, 0 }, { 0, 1 } }),
+    TWO_BY_ONE("2x1", 2, 1, new double[][] { { 0, 0 }, { 1, 0 } }),
+    /** The lone "1"-side slot (index 0, top row) is centered across both columns. */
+    ONE_AND_TWO("1and2", 2, 2, new double[][] { { 0.5, 0 }, { 0, 1 }, { 1, 1 } }),
+    /** The lone "1"-side slot (index 2, bottom row) is centered across both columns. */
+    TWO_AND_ONE("2and1", 2, 2, new double[][] { { 0, 0 }, { 1, 0 }, { 0.5, 1 } }),
+    TWO_BY_TWO("2x2", 2, 2, new double[][] { { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } });
 
     /** Maximum slot count across all sizes; used to size fixed-length synced data arrays. */
     public static final int MAX_SLOTS = 4;
@@ -21,9 +23,9 @@ public enum FrameSize {
     private final String id;
     private final int columns;
     private final int rows;
-    private final int[][] slotPositions;
+    private final double[][] slotPositions;
 
-    FrameSize(String id, int columns, int rows, int[][] slotPositions) {
+    FrameSize(String id, int columns, int rows, double[][] slotPositions) {
         this.id = id;
         this.columns = columns;
         this.rows = rows;
@@ -62,8 +64,12 @@ public enum FrameSize {
         return slotPositions.length;
     }
 
-    /** Column/row (x, y) of the given slot index within this frame's grid. */
-    public int[] slotPosition(int slotIndex) {
+    /**
+     * Column/row (x, y) of the given slot index within this frame's grid, as fractions of a
+     * cell (usually whole numbers, but a lone slot on the "1" side of {@link #ONE_AND_TWO}/
+     * {@link #TWO_AND_ONE} uses a {@code 0.5} column to sit centered across both columns).
+     */
+    public double[] slotPosition(int slotIndex) {
         return slotPositions[slotIndex];
     }
 

@@ -68,9 +68,9 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         this.slotCount = size.slotCount();
 
         for (int i = 0; i < this.slotCount; i++) {
-            int[] gridPos = size.slotPosition(i);
-            int cellX = GRID_ORIGIN_X + gridPos[0] * CELL_WIDTH;
-            int cellY = GRID_ORIGIN_Y + gridPos[1] * CELL_HEIGHT;
+            double[] gridPos = size.slotPosition(i);
+            int cellX = GRID_ORIGIN_X + (int) Math.round(gridPos[0] * CELL_WIDTH);
+            int cellY = GRID_ORIGIN_Y + (int) Math.round(gridPos[1] * CELL_HEIGHT);
             int cellWidth = size.columnSpan() * CELL_WIDTH;
             int cellHeight = size.rowSpan() * CELL_HEIGHT;
             // Center this slot's widget group (item slot + buttons, CELL_WIDTH x CELL_HEIGHT)

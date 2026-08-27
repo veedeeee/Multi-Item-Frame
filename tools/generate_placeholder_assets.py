@@ -105,6 +105,12 @@ def main():
     ImageDraw.Draw(background).rectangle([0, 0, 15, 15], outline=BORDER)
     save(background, "textures", "entity", "background.png")
 
+    # Side/edge strip for the frame's 1px physical thickness (MultiItemFrameRenderer draws the
+    # frame as a thin box, not a flat plane): a plain, tileable strip so it can be stretched to
+    # any edge length without visible seams. Not final art - see TASKS.md ch.4 notes.
+    save(Image.new("RGBA", (16, 16), BORDER), "textures", "entity", "frame_side.png")
+    save(Image.new("RGBA", (16, 16), GLOW_BORDER), "textures", "entity", "frame_glow_side.png")
+
     # Highlight overlays: plain white so the renderer can tint them to any DyeColor per slot.
     highlight_frame = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     draw = ImageDraw.Draw(highlight_frame)
