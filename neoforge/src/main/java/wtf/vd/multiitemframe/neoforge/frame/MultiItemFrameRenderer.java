@@ -48,6 +48,13 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      *  frames additionally shrink by each cell's own share of the single-block frame (see
      *  {@code render()}) so items never overflow their smaller cell. */
     private static final float ITEM_SCALE_SINGLE_SLOT = 0.5F;
+    /** Visual footprint ratio (matching vanilla Item Frame's real model: a 12x12 border+backing
+     *  panel within its 16x16 block face, i.e. a 2px margin on each side) applied to the frame's
+     *  box and all content layers. The entity's actual placement/collision footprint stays a full
+     *  1x1 block (see {@code getWidth()}/{@code getHeight()}/{@code calculateBoundingBox()}) -
+     *  only the rendered size shrinks, exactly like vanilla's frame is visually smaller than the
+     *  block it's mounted on. */
+    private static final float FOOTPRINT_HALF = 0.5F * (12.0F / 16.0F);
 
     private final ItemRenderer itemRenderer;
 
@@ -85,8 +92,8 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // box - see MultiItemFrameEntity#calculateBoundingBox()); FrameSize.columns()/rows() only
         // subdivide that single block face into a grid of smaller cells, they never make the
         // rendered frame itself larger than one block.
-        final float halfWidth = 0.5F;
-        final float halfHeight = 0.5F;
+        final float halfWidth = FOOTPRINT_HALF;
+        final float halfHeight = FOOTPRINT_HALF;
         float baseCellWidth = 1.0F / size.columns();
         float baseCellHeight = 1.0F / size.rows();
 
