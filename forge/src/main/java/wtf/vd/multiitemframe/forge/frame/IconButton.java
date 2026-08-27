@@ -9,7 +9,8 @@ import wtf.vd.multiitemframe.MultiItemFrame;
 import java.util.function.Supplier;
 
 /**
- * A compact 16x16 icon-only button, used for the per-slot highlight-color control in
+ * A compact 18x18 icon-only button (an 18x18 background with a 16x16 icon centered inside,
+ * matching {@code gui/button_stack.png}'s layout), used for the per-slot highlight-color control in
  * {@link MultiItemFrameScreen} (matches {@code gui_sample.html}'s "item stack" row of small icon
  * buttons rather than vanilla's text buttons). Shows the "pressing" background only while the
  * mouse is actually held down on it (not just hovered), and supports an optional middle-click
@@ -34,7 +35,7 @@ public class IconButton extends Button {
 
     public IconButton(int x, int y, Supplier<ResourceLocation> iconSupplier, OnPress onPress,
             Runnable onMiddleClick, Supplier<Component> tooltipSupplier) {
-        super(x, y, 16, 16, Component.empty(), onPress, DEFAULT_NARRATION);
+        super(x, y, 18, 18, Component.empty(), onPress, DEFAULT_NARRATION);
         this.iconSupplier = iconSupplier;
         this.onMiddleClick = onMiddleClick;
         this.tooltipSupplier = tooltipSupplier;
@@ -66,8 +67,8 @@ public class IconButton extends Button {
             this.setTooltip(net.minecraft.client.gui.components.Tooltip.create(this.tooltipSupplier.get()));
         }
         ResourceLocation background = this.pressed ? BACKGROUND_PRESSING : BACKGROUND;
-        guiGraphics.blit(background, this.getX(), this.getY(), 0, 0, 16, 16, 16, 16);
-        guiGraphics.blit(this.iconSupplier.get(), this.getX(), this.getY(), 0, 0, 16, 16, 16, 16);
+        guiGraphics.blit(background, this.getX(), this.getY(), 0, 0, 18, 18, 18, 18);
+        guiGraphics.blit(this.iconSupplier.get(), this.getX() + 1, this.getY() + 1, 0, 0, 16, 16, 16, 16);
     }
 }
 

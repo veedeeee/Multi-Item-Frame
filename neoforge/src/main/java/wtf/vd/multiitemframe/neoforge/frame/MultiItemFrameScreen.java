@@ -15,22 +15,27 @@ import net.minecraft.world.item.Items;
 import wtf.vd.multiitemframe.frame.HighlightMode;
 
 /**
- * Screen for {@link MultiItemFrameMenu}. Background/border is drawn from {@code gui/base.png}
- * (a single flat bordered panel texture, stretched to the panel's actual size). Per-slot
- * controls (highlight-mode toggle, highlight-color cycle) are laid out as a compact row
- * immediately to the right of each frame slot, mirroring {@code gui_sample.html}'s per-slot
- * "item stack" widget group.
+ * Screen for {@link MultiItemFrameMenu}. Background/border is drawn from
+ * {@code gui/main_gui_background.png} (176x166 panel with a transparent settings viewport and
+ * a vanilla-shaped player inventory area baked in); each frame slot's item-slot background comes
+ * from {@code gui/item_slot_background.png}, drawn separately since the viewport itself is
+ * transparent. Per-slot controls (highlight-mode toggle, highlight-color cycle) are laid out as
+ * a compact row immediately to the right of each frame slot, mirroring {@code gui_sample.html}'s
+ * per-slot "item stack" widget group (see {@code gui/button_stack.png} for the reference layout).
  */
 public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrameMenu> {
 
     private static final ResourceLocation BACKGROUND =
-            ResourceLocation.fromNamespaceAndPath(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/base.png");
+            ResourceLocation.fromNamespaceAndPath(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/main_gui_background.png");
+    private static final ResourceLocation ITEM_SLOT_BACKGROUND =
+            ResourceLocation.fromNamespaceAndPath(wtf.vd.multiitemframe.MultiItemFrame.MOD_ID, "gui/item_slot_background.png");
 
     /** Gap (px) between the item slot and the mode button, and between the mode and color buttons. */
-    private static final int BUTTON_GAP = 2;
-    private static final int BUTTON_SIZE = 16;
-    /** Item slots are vanilla's usual 18px; center the 16px-tall buttons within that row height. */
-    private static final int BUTTON_Y_OFFSET = 1;
+    private static final int BUTTON_GAP = 3;
+    private static final int BUTTON_SIZE = 18;
+    /** Item slots are vanilla's usual 16px icon, in an 18px-wide cell (same width as a button). */
+    private static final int ITEM_SLOT_ICON_SIZE = 16;
+    private static final int ITEM_SLOT_CELL_SIZE = 18;
 
     public MultiItemFrameScreen(MultiItemFrameMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -100,14 +105,14 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
     /** Screen-space bounds of the item slot for the given frame slot (used by JEI's ghost item handler). */
     public Rect2i getItemSlotArea(int slot) {
         Slot itemSlot = this.menu.getSlot(slot);
-        return new Rect2i(this.leftPos + itemSlot.x, this.topPos + itemSlot.y, BUTTON_SIZE, BUTTON_SIZE);
+        return new Rect2i(this.leftPos + itemSlot.x, this.topPos + itemSlot.y, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE);
     }
 
     /** Screen-space bounds of the highlight-mode button for the given frame slot. */
     public Rect2i getModeButtonArea(int slot) {
         Slot itemSlot = this.menu.getSlot(slot);
-        int modeButtonX = this.leftPos + itemSlot.x + 18 + BUTTON_GAP;
-        int buttonY = this.topPos + itemSlot.y + BUTTON_Y_OFFSET;
+        int modeButtonX = this.leftPos + itemSlot.x + ITEM_SLOT_CELL_SIZE + BUTTON_GAP;
+        int buttonY = this.topPos + itemSlot.y;
         return new Rect2i(modeButtonX, buttonY, BUTTON_SIZE, BUTTON_SIZE);
     }
 
@@ -139,7 +144,7 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         if (button == 2) {
             for (int slot = 0; slot < this.menu.slotCount; slot++) {
                 Slot itemSlot = this.menu.getSlot(slot);
-                if (this.isHovering(itemSlot.x, itemSlot.y, 16, 16, mouseX, mouseY)) {
+                if (this.isHovering(itemSlot.x, itemSlot.y, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, mouseX, mouseY)) {
                     this.minecraft.gameMode.handleInventoryMouseClick(this.menu.containerId, itemSlot.index, button,
                             ClickType.PICKUP, this.minecraft.player);
                     return true;
@@ -162,6 +167,11 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0, 0, 256, 256, 256, 256);
+        guiGraphics.blit(BACKGROUND, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0, 0, 333, 256, 333, 256);
+        for (int slot = 0; slot < this.menu.slotCount; slot++) {
+            Slot itemSlot = this.menu.getSlot(slot);
+            guiGraphics.blit(ITEM_SLOT_BACKGROUND, this.leftPos + itemSlot.x, this.topPos + itemSlot.y,
+                    0, 0, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE, ITEM_SLOT_ICON_SIZE);
+        }
     }
 }

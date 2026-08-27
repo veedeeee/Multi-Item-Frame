@@ -35,11 +35,21 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
      * one) - see {@link FrameSize#columnSpan()}/{@link FrameSize#rowSpan()}. Each cell holds one
      * "row" widget group: the item slot, then the highlight-mode toggle button, then the
      * highlight-color cycle button, matching {@code gui_sample.html}'s per-slot layout.
+     *
+     * <p>These constants are reverse-engineered from the pixel coordinates of the
+     * {@code gui/main_gui_*_placeholder.png} layout guides (measured against
+     * {@code gui/main_gui_background.png}'s panel): {@code GRID_ORIGIN_*} is the transparent
+     * settings viewport's top-left corner, {@code CELL_*} is the spacing between grid columns/
+     * rows, and {@code GROUP_*} is the widget group's own size (item slot + 2 buttons, see
+     * {@code gui/button_stack.png}) which is centered within however many grid cells a slot's
+     * {@link FrameSize#columnSpan()}/{@link FrameSize#rowSpan()} spans.</p>
      */
-    private static final int GRID_ORIGIN_X = 34;
-    private static final int GRID_ORIGIN_Y = 22;
-    private static final int CELL_WIDTH = 54;
-    private static final int CELL_HEIGHT = 18;
+    private static final int GRID_ORIGIN_X = 7;
+    private static final int GRID_ORIGIN_Y = 7;
+    private static final int CELL_WIDTH = 80;
+    private static final int CELL_HEIGHT = 36;
+    private static final int GROUP_WIDTH = 60;
+    private static final int GROUP_HEIGHT = 18;
 
     /*
      * Menu-button id ranges (see #clickMenuButton). Kept contiguous and non-overlapping:
@@ -72,13 +82,13 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
             double[] gridPos = size.slotPosition(i);
             int cellX = GRID_ORIGIN_X + (int) Math.round(gridPos[0] * CELL_WIDTH);
             int cellY = GRID_ORIGIN_Y + (int) Math.round(gridPos[1] * CELL_HEIGHT);
-            int cellWidth = size.columnSpan() * CELL_WIDTH;
-            int cellHeight = size.rowSpan() * CELL_HEIGHT;
-            // Center this slot's widget group (item slot + buttons, CELL_WIDTH x CELL_HEIGHT)
-            // within the cell area it was assigned (wider/taller than one cell when this
-            // FrameSize only uses one column/row, per columnSpan()/rowSpan()).
-            int groupX = cellX + (cellWidth - CELL_WIDTH) / 2;
-            int groupY = cellY + (cellHeight - CELL_HEIGHT) / 2;
+            int spanWidth = size.columnSpan() * CELL_WIDTH;
+            int spanHeight = size.rowSpan() * CELL_HEIGHT;
+            // Center this slot's widget group (GROUP_WIDTH x GROUP_HEIGHT) within the span of
+            // grid cells it was assigned (wider/taller than one cell when this FrameSize only
+            // uses one column/row, per columnSpan()/rowSpan()).
+            int groupX = cellX + (spanWidth - GROUP_WIDTH) / 2;
+            int groupY = cellY + (spanHeight - GROUP_HEIGHT) / 2;
             this.addSlot(new Slot(frame, i, groupX, groupY));
         }
 
