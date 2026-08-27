@@ -215,6 +215,21 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         return this.getFrameItemStack().getHoverName();
     }
 
+    /**
+     * {@code Entity#getName()} (distinct from the MenuProvider's {@link #getDisplayName()} above)
+     * is what third-party tooltip mods like Jade read for an entity's displayed name - by default
+     * it falls back to {@code EntityType#getDescription()}, which is always the generic "Multi
+     * Item Frame"/"Glowing Multi Item Frame" translation since there's only one entity type per
+     * glow variant (see {@code ModEntities} - FrameSize is synced entity data, not a separate
+     * type), losing the size suffix (e.g. "1x1") that the item's own name has. Overriding this to
+     * match {@link #getDisplayName()} makes Jade (and any other name reader) show the same
+     * size-specific name the inventory/item tooltip already does.
+     */
+    @Override
+    public Component getName() {
+        return this.getFrameItemStack().getHoverName();
+    }
+
     @Nullable
     @Override
     public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
