@@ -87,8 +87,8 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // rendered frame itself larger than one block.
         final float halfWidth = 0.5F;
         final float halfHeight = 0.5F;
-        float cellWidth = 1.0F / size.columns();
-        float cellHeight = 1.0F / size.rows();
+        float baseCellWidth = 1.0F / size.columns();
+        float baseCellHeight = 1.0F / size.rows();
 
         boolean glowing = entity instanceof GlowMultiItemFrameEntity;
         ResourceLocation frameTexture = glowing ? FRAME_GLOW_TEXTURE : FRAME_TEXTURE;
@@ -108,50 +108,46 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
 
         if (entity.isBackgroundVisible()) {
             for (int slot = 0; slot < size.slotCount(); slot++) {
-                double[] gridPos = size.slotPosition(slot);
-                // Mirrored horizontally (see the comment on the item/highlight loop below for why).
-                float left = halfWidth - (float) gridPos[0] * cellWidth - cellWidth;
-                float top = halfHeight - (float) gridPos[1] * cellHeight;
-                renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellHeight, left + cellWidth, top,
+                float[] bounds = slotBounds(size, slot, halfWidth, halfHeight, baseCellWidth, baseCellHeight);
+                float left = bounds[0];
+                float top = bounds[1];
+                float cellW = bounds[2];
+                float cellH = bounds[3];
+                renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellH, left + cellW, top,
                         depth, 0xFFFFFFFF, packedLight, -1.0F);
             }
             depth -= LAYER_STEP;
         }
 
-        // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot frames);
-        // multi-slot frames additionally shrink by each cell's own share of the block so items
-        // never overflow their (now smaller) cell.
-        float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellWidth, cellHeight);
-
         for (int slot = 0; slot < size.slotCount(); slot++) {
-            double[] gridPos = size.slotPosition(slot);
-            // The X axis is mirrored (right-to-left instead of left-to-right) compared to
-            // gridPos[0]'s literal value: turning the -Z sign flip (see depth's comment above)
-            // means the viewer on the accessible side is now facing the opposite way along Z
-            // from what these local coordinates were originally authored for, which mirrors their
-            // apparent left/right (but not up/down - Y is unaffected by a turn-around along Z).
-            // Without this, slot 0 (top-left in the GUI, per FrameSize#slotPosition) would render
-            // on the viewer's right instead of their left, out of sync with the settings GUI.
-            float left = halfWidth - (float) gridPos[0] * cellWidth - cellWidth;
-            float top = halfHeight - (float) gridPos[1] * cellHeight;
+            float[] bounds = slotBounds(size, slot, halfWidth, halfHeight, baseCellWidth, baseCellHeight);
+            float left = bounds[0];
+            float top = bounds[1];
+            float cellW = bounds[2];
+            float cellH = bounds[3];
 
             HighlightMode mode = entity.getHighlightMode(slot);
             DyeColor color = entity.getHighlightColor(slot);
             if (color != null) {
                 int rgb = color.getFireworkColor();
                 if (mode == HighlightMode.FRAME) {
-                    renderHighlightFrameBorder(poseStack, buffer, left, top - cellHeight, left + cellWidth, top,
+                    renderHighlightFrameBorder(poseStack, buffer, left, top - cellH, left + cellW, top,
                             depth, 0xFF000000 | rgb, packedLight);
                 } else {
-                    renderQuad(poseStack, buffer, HIGHLIGHT_FILL_TEXTURE, left, top - cellHeight, left + cellWidth,
+                    renderQuad(poseStack, buffer, HIGHLIGHT_FILL_TEXTURE, left, top - cellH, left + cellW,
                             top, depth, 0xFF000000 | rgb, packedLight, -1.0F);
                 }
             }
 
             ItemStack stack = entity.getItem(slot);
             if (!stack.isEmpty()) {
+                // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot
+                // frames); multi-slot frames additionally shrink by each cell's own share of the
+                // block so items never overflow their (now smaller, or full-width/height for a
+                // lone slot - see slotBounds) cell.
+                float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
                 poseStack.pushPose();
-                poseStack.translate(left + cellWidth / 2.0F, top - cellHeight / 2.0F, depth - LAYER_STEP);
+                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth - LAYER_STEP);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
@@ -160,6 +156,31 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         }
 
         poseStack.popPose();
+    }
+
+    /**
+     * Computes {@code {left, top, width, height}} in local block-space for a slot's content
+     * layers (background/highlight/item). Most slots occupy a single {@code baseCellWidth} x
+     * {@code baseCellHeight} cell positioned by {@link FrameSize#slotPosition}'s integer grid
+     * coordinate, mirrored horizontally to compensate for the accessible-side viewer's flipped X
+     * axis (see the comment on {@code depth} in {@link #render}: turning the -Z sign flip around
+     * means their apparent left/right is mirrored relative to gridPos[0]'s literal value, but not
+     * their up/down). A lone slot spanning the whole width or height of the frame (marked by a
+     * fractional {@code 0.5} grid coordinate on that axis - see {@link FrameSize#ONE_AND_TWO}/
+     * {@link FrameSize#TWO_AND_ONE}) instead spans the frame's full {@code halfWidth}/{@code
+     * halfHeight} * 2 on that axis, rather than being centered within a single, narrower cell.
+     */
+    private static float[] slotBounds(FrameSize size, int slot, float halfWidth, float halfHeight,
+            float baseCellWidth, float baseCellHeight) {
+        double[] gridPos = size.slotPosition(slot);
+        boolean fullWidth = gridPos[0] != Math.floor(gridPos[0]);
+        boolean fullHeight = gridPos[1] != Math.floor(gridPos[1]);
+        float cellW = fullWidth ? halfWidth * 2.0F : baseCellWidth;
+        float cellH = fullHeight ? halfHeight * 2.0F : baseCellHeight;
+        float right = fullWidth ? halfWidth : halfWidth - (float) gridPos[0] * baseCellWidth;
+        float left = right - cellW;
+        float top = fullHeight ? halfHeight : halfHeight - (float) gridPos[1] * baseCellHeight;
+        return new float[] { left, top, cellW, cellH };
     }
 
     /**
