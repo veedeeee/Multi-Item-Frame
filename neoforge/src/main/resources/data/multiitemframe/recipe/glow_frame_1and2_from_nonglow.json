@@ -1,12 +1,11 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    "minecraft:item_frame",
-    "minecraft:redstone",
+    "multiitemframe:frame_1and2",
     "minecraft:glowstone_dust"
   ],
   "result": {
-    "id": "multiitemframe:glow_frame_1x1",
+    "id": "multiitemframe:glow_frame_1and2",
     "count": 1
   }
 }

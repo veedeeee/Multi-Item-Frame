@@ -63,8 +63,8 @@ def build_recipes(legacy):
 
     recipes["frame_1x2"] = shaped(["@", "@"], {"@": "frame_1x1"}, "frame_1x2", legacy=legacy)
     recipes["frame_2x1"] = shaped(["@@"], {"@": "frame_1x1"}, "frame_2x1", legacy=legacy)
-    recipes["frame_1x2_from_2x1"] = shapeless(["frame_2x1"], "frame_1x2", legacy=legacy)
-    recipes["frame_2x1_from_1x2"] = shapeless(["frame_1x2"], "frame_2x1", legacy=legacy)
+    recipes["frame_1x2_vice_versa"] = shapeless(["frame_2x1"], "frame_1x2", legacy=legacy)
+    recipes["frame_2x1_vice_versa"] = shapeless(["frame_1x2"], "frame_2x1", legacy=legacy)
 
     recipes["frame_1and2"] = shaped(["@ ", "@@"], {"@": "frame_1x1"}, "frame_1and2", legacy=legacy)
     recipes["frame_1and2_alt"] = shaped(["@", "&"], {"@": "frame_1x1", "&": "frame_1x2"}, "frame_1and2", legacy=legacy)
@@ -76,12 +76,15 @@ def build_recipes(legacy):
     recipes["frame_2x2_from_1x2"] = shaped(["&&"], {"&": "frame_1x2"}, "frame_2x2", legacy=legacy)
     recipes["frame_2x2_from_2x1"] = shaped(["$", "$"], {"$": "frame_2x1"}, "frame_2x2", legacy=legacy)
 
-    recipes["glow_frame_1x1"] = shapeless(["frame_1x1", "minecraft:glowstone_dust"], "glow_frame_1x1", legacy=legacy)
+    # Glow frames can be crafted directly from vanilla ingredients (mirroring frame_1x1's own
+    # recipe, plus glowstone dust)...
+    recipes["glow_frame_1x1"] = shapeless(
+        ["minecraft:item_frame", "minecraft:redstone", "minecraft:glowstone_dust"], "glow_frame_1x1", legacy=legacy)
 
     recipes["glow_frame_1x2"] = shaped(["@", "@"], {"@": "glow_frame_1x1"}, "glow_frame_1x2", legacy=legacy)
     recipes["glow_frame_2x1"] = shaped(["@@"], {"@": "glow_frame_1x1"}, "glow_frame_2x1", legacy=legacy)
-    recipes["glow_frame_1x2_from_2x1"] = shapeless(["glow_frame_2x1"], "glow_frame_1x2", legacy=legacy)
-    recipes["glow_frame_2x1_from_1x2"] = shapeless(["glow_frame_1x2"], "glow_frame_2x1", legacy=legacy)
+    recipes["glow_frame_1x2_vice_versa"] = shapeless(["glow_frame_2x1"], "glow_frame_1x2", legacy=legacy)
+    recipes["glow_frame_2x1_vice_versa"] = shapeless(["glow_frame_1x2"], "glow_frame_2x1", legacy=legacy)
 
     recipes["glow_frame_1and2"] = shaped(["@ ", "@@"], {"@": "glow_frame_1x1"}, "glow_frame_1and2", legacy=legacy)
     recipes["glow_frame_1and2_alt"] = shaped(["@", "&"], {"@": "glow_frame_1x1", "&": "glow_frame_1x2"}, "glow_frame_1and2", legacy=legacy)
@@ -92,6 +95,12 @@ def build_recipes(legacy):
     recipes["glow_frame_2x2"] = shaped(["@@", "@@"], {"@": "glow_frame_1x1"}, "glow_frame_2x2", legacy=legacy)
     recipes["glow_frame_2x2_from_1x2"] = shaped(["&&"], {"&": "glow_frame_1x2"}, "glow_frame_2x2", legacy=legacy)
     recipes["glow_frame_2x2_from_2x1"] = shaped(["$", "$"], {"$": "glow_frame_2x1"}, "glow_frame_2x2", legacy=legacy)
+
+    # ...or upgraded in-place from an already-built non-glow frame of the same size, one
+    # glowstone dust each (mirrors how a vanilla Item Frame is turned into a Glow Item Frame).
+    for size in ("1x1", "1x2", "2x1", "1and2", "2and1", "2x2"):
+        recipes[f"glow_frame_{size}_from_nonglow"] = shapeless(
+            [f"frame_{size}", "minecraft:glowstone_dust"], f"glow_frame_{size}", legacy=legacy)
 
     return recipes
 
