@@ -16,7 +16,7 @@
   "entity.multiitemframe.glow_multi_item_frame": "Glowing Multi Item Frame",
   "gui.multiitemframe.item_slot_tooltip": "Drag and Drop to choose item, Middle-click to erase",
   "gui.multiitemframe.highlight_type_frame_tooltip": "Highlight type: Frame",
-  "gui.multiitemframe.highlight_type_fill_tooltip": "Hightlight type: Filled",
+  "gui.multiitemframe.highlight_type_fill_tooltip": "Highlight type: Filled",
   "gui.multiitemframe.color_tooltip": "Left-click to cycle color, Middle-click to erase",
   "gui.multiitemframe.config_card_saved": "Frame settings saved to card",
   "gui.multiitemframe.config_card_loaded": "Frame settings loaded from card",

@@ -14,7 +14,9 @@ import os
 
 MOD_ID = "multiitemframe"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FORGE_DIR = os.path.join(ROOT, "forge", "src", "main", "resources", "data", MOD_ID, "recipe")
+# Forge targets 1.20.1, which uses the pre-1.21 plural folder name ("recipes"); NeoForge
+# targets 1.21.1, which uses the singular name introduced in 1.21 ("recipe").
+FORGE_DIR = os.path.join(ROOT, "forge", "src", "main", "resources", "data", MOD_ID, "recipes")
 NEOFORGE_DIR = os.path.join(ROOT, "neoforge", "src", "main", "resources", "data", MOD_ID, "recipe")
 
 
