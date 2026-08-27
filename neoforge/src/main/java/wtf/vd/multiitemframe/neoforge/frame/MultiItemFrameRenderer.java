@@ -15,6 +15,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import wtf.vd.multiitemframe.MultiItemFrame;
+import wtf.vd.multiitemframe.frame.DisplayContentKind;
 import wtf.vd.multiitemframe.frame.FrameSize;
 import wtf.vd.multiitemframe.frame.HighlightMode;
 
@@ -190,18 +191,38 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
             }
 
             ItemStack stack = entity.getItem(slot);
-            if (!stack.isEmpty()) {
-                // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot
-                // frames); multi-slot frames additionally shrink by each cell's own share of the
-                // block so items never overflow their (now smaller, or full-width/height for a
-                // lone slot - see slotBounds) cell.
-                float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
-                poseStack.pushPose();
-                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, highlightDepth - ITEM_DEPTH_EPSILON);
-                poseStack.scale(itemScale, itemScale, itemScale);
-                this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
-                        poseStack, buffer, entity.level(), entity.getId());
-                poseStack.popPose();
+            DisplayContentKind contentKind = entity.getContentKind(slot);
+            if (contentKind == DisplayContentKind.ITEM) {
+                if (!stack.isEmpty()) {
+                    // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot
+                    // frames); multi-slot frames additionally shrink by each cell's own share of the
+                    // block so items never overflow their (now smaller, or full-width/height for a
+                    // lone slot - see slotBounds) cell.
+                    float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
+                    poseStack.pushPose();
+                    poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, highlightDepth - ITEM_DEPTH_EPSILON);
+                    poseStack.scale(itemScale, itemScale, itemScale);
+                    this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
+                            poseStack, buffer, entity.level(), entity.getId());
+                    poseStack.popPose();
+                }
+            } else {
+                // Fluid/Chemical/Energy: drawn as a flat tinted quad sampling the same atlas
+                // sprite the game already uses for that content (see ContentIconResolver),
+                // instead of going through ItemRenderer.
+                net.minecraft.client.renderer.texture.TextureAtlasSprite sprite =
+                        ContentIconResolver.getSprite(contentKind, entity.getContentId(slot));
+                if (sprite != null) {
+                    float iconScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
+                    float half = iconScale / 2.0F;
+                    float cx = left + cellW / 2.0F;
+                    float cy = top - cellH / 2.0F;
+                    int tint = ContentIconResolver.getTintARGB(contentKind, entity.getContentId(slot));
+                    renderQuad(poseStack, buffer, net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS,
+                            cx - half, cy - half, cx + half, cy + half, highlightDepth - ITEM_DEPTH_EPSILON,
+                            sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), tint, packedLight, -1.0F,
+                            true);
+                }
             }
         }
 

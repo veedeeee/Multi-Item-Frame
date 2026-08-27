@@ -190,6 +190,37 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
         super.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
+    /**
+     * Frame slots holding non-item content (Fluid/Gas/Infusion/Pigment/Slurry/Energy - see
+     * {@link wtf.vd.multiitemframe.frame.DisplayContentKind}) have no real {@code ItemStack} to
+     * hand to vanilla's item-icon rendering (their slot's {@code ItemStack} is kept empty - see
+     * {@code MultiItemFrameEntity#setDisplayContent}); instead this draws the same atlas sprite
+     * (+ tint) {@link ContentIconResolver} resolves for the in-world renderer, directly at the
+     * slot's position. Drawn from {@link #renderBg} (rather than overriding vanilla's private,
+     * non-overridable {@code renderSlot}) so it paints before the item-icon pass and any tooltip.
+     */
+    private void renderContentIcons(GuiGraphics guiGraphics) {
+        for (int slot = 0; slot < this.menu.slotCount; slot++) {
+            wtf.vd.multiitemframe.frame.DisplayContentKind kind = this.menu.getContentKind(slot);
+            if (kind == wtf.vd.multiitemframe.frame.DisplayContentKind.ITEM) {
+                continue;
+            }
+            String contentId = this.menu.getContentId(slot);
+            net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = ContentIconResolver.getSprite(kind, contentId);
+            if (sprite == null) {
+                continue;
+            }
+            Slot itemSlot = this.menu.getSlot(slot);
+            int tint = ContentIconResolver.getTintARGB(kind, contentId);
+            float a = ((tint >>> 24) & 0xFF) / 255.0F;
+            float r = ((tint >> 16) & 0xFF) / 255.0F;
+            float g = ((tint >> 8) & 0xFF) / 255.0F;
+            float b = (tint & 0xFF) / 255.0F;
+            guiGraphics.blit(this.leftPos + itemSlot.x, this.topPos + itemSlot.y, 0, ITEM_SLOT_ICON_SIZE,
+                    ITEM_SLOT_ICON_SIZE, sprite, r, g, b, a);
+        }
+    }
+
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         // Backstop the settings viewport's transparent hole with a flat fill matching the
@@ -211,6 +242,7 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
                     this.topPos + itemSlot.y - ITEM_SLOT_BG_INSET, 0, 0, ITEM_SLOT_BG_SIZE, ITEM_SLOT_BG_SIZE,
                     ITEM_SLOT_BG_SIZE, ITEM_SLOT_BG_SIZE);
         }
+        this.renderContentIcons(guiGraphics);
     }
 
     /**

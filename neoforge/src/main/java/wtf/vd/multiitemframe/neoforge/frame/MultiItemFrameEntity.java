@@ -35,6 +35,7 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import javax.annotation.Nullable;
+import wtf.vd.multiitemframe.frame.DisplayContentKind;
 import wtf.vd.multiitemframe.frame.FrameSize;
 import wtf.vd.multiitemframe.frame.HighlightMode;
 
@@ -59,12 +60,25 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     private static final EntityDataAccessor<ItemStack>[] DATA_ITEMS = new EntityDataAccessor[FrameSize.MAX_SLOTS];
     private static final EntityDataAccessor<Byte>[] DATA_MODES = new EntityDataAccessor[FrameSize.MAX_SLOTS];
     private static final EntityDataAccessor<Byte>[] DATA_COLORS = new EntityDataAccessor[FrameSize.MAX_SLOTS];
+    /** Which kind of content a slot is displaying (see {@link DisplayContentKind}); {@code ITEM}
+     *  (the default) means {@link #DATA_ITEMS} holds the actual displayed item, any other value
+     *  means the slot instead displays a Fluid/Chemical/Energy type identified by
+     *  {@link #DATA_CONTENT_IDS} (empty for {@code ENERGY}, which has no per-type identity - see
+     *  {@code compat.container.ContainerContentExtractor}). */
+    @SuppressWarnings("unchecked")
+    private static final EntityDataAccessor<Byte>[] DATA_CONTENT_KINDS = new EntityDataAccessor[FrameSize.MAX_SLOTS];
+    /** Registry name (e.g. {@code "minecraft:water"}, {@code "mekanism:hydrogen"}) of the
+     *  Fluid/Chemical a slot displays, empty string when not applicable. */
+    @SuppressWarnings("unchecked")
+    private static final EntityDataAccessor<String>[] DATA_CONTENT_IDS = new EntityDataAccessor[FrameSize.MAX_SLOTS];
 
     static {
         for (int i = 0; i < FrameSize.MAX_SLOTS; i++) {
             DATA_ITEMS[i] = SynchedEntityData.defineId(MultiItemFrameEntity.class, EntityDataSerializers.ITEM_STACK);
             DATA_MODES[i] = SynchedEntityData.defineId(MultiItemFrameEntity.class, EntityDataSerializers.BYTE);
             DATA_COLORS[i] = SynchedEntityData.defineId(MultiItemFrameEntity.class, EntityDataSerializers.BYTE);
+            DATA_CONTENT_KINDS[i] = SynchedEntityData.defineId(MultiItemFrameEntity.class, EntityDataSerializers.BYTE);
+            DATA_CONTENT_IDS[i] = SynchedEntityData.defineId(MultiItemFrameEntity.class, EntityDataSerializers.STRING);
         }
     }
 
@@ -87,6 +101,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             builder.define(DATA_ITEMS[i], ItemStack.EMPTY);
             builder.define(DATA_MODES[i], (byte) HighlightMode.FRAME.ordinal());
             builder.define(DATA_COLORS[i], (byte) -1);
+            builder.define(DATA_CONTENT_KINDS[i], (byte) DisplayContentKind.ITEM.ordinal());
+            builder.define(DATA_CONTENT_IDS[i], "");
         }
     }
 
@@ -125,6 +141,30 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
         this.getEntityData().set(DATA_COLORS[slot], (byte) (color == null ? -1 : color.getId()));
     }
 
+    /** Which kind of content slot {@code slot} is displaying (see {@link DisplayContentKind}). */
+    public DisplayContentKind getContentKind(int slot) {
+        return DisplayContentKind.byOrdinalSafe(this.getEntityData().get(DATA_CONTENT_KINDS[slot]));
+    }
+
+    /** Registry name of the Fluid/Chemical displayed in {@code slot} (empty when not applicable). */
+    public String getContentId(int slot) {
+        return this.getEntityData().get(DATA_CONTENT_IDS[slot]);
+    }
+
+    /**
+     * Sets a slot to display a non-item content type (Fluid/Chemical/Energy) - clears the slot's
+     * displayed item, since only one of the two is shown at a time. Used by
+     * {@code MultiItemFrameMenu#clicked} when the carried stack is a filled container (see
+     * {@code compat.container.ContainerContentExtractor}); {@code id} should be empty for
+     * {@link DisplayContentKind#ENERGY}, which has no per-type identity.
+     */
+    public void setDisplayContent(int slot, DisplayContentKind kind, String id) {
+        this.getEntityData().set(DATA_ITEMS[slot], ItemStack.EMPTY);
+        this.getEntityData().set(DATA_CONTENT_KINDS[slot], (byte) kind.ordinal());
+        this.getEntityData().set(DATA_CONTENT_IDS[slot], id);
+        this.setChanged();
+    }
+
     // --- Container (slot storage backing the GUI) ---
 
     @Override
@@ -135,7 +175,7 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     @Override
     public boolean isEmpty() {
         for (int i = 0; i < this.getContainerSize(); i++) {
-            if (!this.getItem(i).isEmpty()) {
+            if (!this.getItem(i).isEmpty() || this.getContentKind(i) != DisplayContentKind.ITEM) {
                 return false;
             }
         }
@@ -158,6 +198,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     public ItemStack removeItemNoUpdate(int slot) {
         ItemStack result = this.getItem(slot);
         this.getEntityData().set(DATA_ITEMS[slot], ItemStack.EMPTY);
+        this.getEntityData().set(DATA_CONTENT_KINDS[slot], (byte) DisplayContentKind.ITEM.ordinal());
+        this.getEntityData().set(DATA_CONTENT_IDS[slot], "");
         return result;
     }
 
@@ -167,6 +209,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             stack = stack.copyWithCount(1);
         }
         this.getEntityData().set(DATA_ITEMS[slot], stack);
+        this.getEntityData().set(DATA_CONTENT_KINDS[slot], (byte) DisplayContentKind.ITEM.ordinal());
+        this.getEntityData().set(DATA_CONTENT_IDS[slot], "");
         this.setChanged();
     }
 
@@ -186,6 +230,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
     public void clearContent() {
         for (int i = 0; i < FrameSize.MAX_SLOTS; i++) {
             this.getEntityData().set(DATA_ITEMS[i], ItemStack.EMPTY);
+            this.getEntityData().set(DATA_CONTENT_KINDS[i], (byte) DisplayContentKind.ITEM.ordinal());
+            this.getEntityData().set(DATA_CONTENT_IDS[i], "");
         }
     }
 
@@ -340,6 +386,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             slotTag.putByte("Mode", (byte) this.getHighlightMode(i).ordinal());
             DyeColor color = this.getHighlightColor(i);
             slotTag.putByte("Color", (byte) (color == null ? -1 : color.getId()));
+            slotTag.putByte("ContentKind", (byte) this.getContentKind(i).ordinal());
+            slotTag.putString("ContentId", this.getContentId(i));
             slotSettings.add(slotTag);
         }
         tag.put("Slots", slotSettings);
@@ -366,6 +414,10 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             this.setItem(i, stack);
             this.getEntityData().set(DATA_MODES[i], slotTag.getByte("Mode"));
             this.getEntityData().set(DATA_COLORS[i], slotTag.contains("Color") ? slotTag.getByte("Color") : (byte) -1);
+            if (slotTag.contains("ContentKind")) {
+                this.setDisplayContent(i, DisplayContentKind.byOrdinalSafe(slotTag.getByte("ContentKind")),
+                        slotTag.getString("ContentId"));
+            }
         }
     }
 
@@ -388,6 +440,8 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             slotTag.putByte("Mode", (byte) this.getHighlightMode(i).ordinal());
             DyeColor color = this.getHighlightColor(i);
             slotTag.putByte("Color", (byte) (color == null ? -1 : color.getId()));
+            slotTag.putByte("ContentKind", (byte) this.getContentKind(i).ordinal());
+            slotTag.putString("ContentId", this.getContentId(i));
             slots.add(slotTag);
         }
         compound.put("Slots", slots);
@@ -414,6 +468,9 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
             this.getEntityData().set(DATA_ITEMS[slot], stack);
             this.getEntityData().set(DATA_MODES[slot], slotTag.getByte("Mode"));
             this.getEntityData().set(DATA_COLORS[slot], slotTag.contains("Color") ? slotTag.getByte("Color") : (byte) -1);
+            this.getEntityData().set(DATA_CONTENT_KINDS[slot], slotTag.contains("ContentKind")
+                    ? slotTag.getByte("ContentKind") : (byte) DisplayContentKind.ITEM.ordinal());
+            this.getEntityData().set(DATA_CONTENT_IDS[slot], slotTag.contains("ContentId") ? slotTag.getString("ContentId") : "");
         }
     }
 }

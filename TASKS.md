@@ -122,8 +122,13 @@
 - [x] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト（`Ae2MemoryCardCompat`、forge/neoforge双方）
 - [x] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト（`MekanismConfigCardCompat`、forge/neoforge双方）
 - [x] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合（実アイテムスロットへのドラッグはJEI標準機能。染料ドラッグによる色設定は`IGhostIngredientHandler`で追加実装）
+- [x] **Fluid / Mekanism Chemical / Energy(FE)のスロット表示対応**(forge/neoforge両方): GUIのアイテムスロット上で、満たされたコンテナアイテム(バケツ、Mekanismのタンク、電池など)をクリック(またはJEIからアイテムドラッグ)すると、コンテナ自体ではなく中身の種類(Fluid/Chemical/Energy)を表示するようにした。数量は表示せず種類のみ(既存のアイテム表示と同じく所持数1固定・見た目専用)。新規カスタムアイコン素材は追加せず、ゲームが元々ロード済みのアトラススプライト+ティント(JEIの表示と同じもの)をそのまま流用して描画する(`ContentIconResolver`)。
+  - 判定順序: Fluid(vanilla Forge/NeoForgeのFluidHandlerItemケーパビリティ、MOD不問) → Mekanism Gas/Infusion/Pigment/Slurry(Forge、`mekanism`導入時のみ) / Mekanism統合Chemical(NeoForge、10.6+の統合Chemical APIに追従。`mekanism`導入時のみ) → 汎用FEエネルギー(vanilla Forge/NeoForgeのEnergyStorageケーパビリティ、MOD不問)。いずれにも該当しなければ従来通りアイテム自体を表示。
+  - Mekanismの`api`限定依存(`mekanism.common`非公開)のため、ケーパビリティトークンは`CapabilityManager.get(new CapabilityToken<>(){})`(Forge)/`ItemCapability.createVoid(...)`(NeoForge)で独自に取得し、Mekanism内部の実装と同一インスタンスに解決させている。
+  - エンティティの同期データに`ContentKind`/`ContentId`を追加(`ITEM`のときのみ既存の`ItemStack`を使用)、NBT保存・設定コピペ(AE2 Memory Card/Mekanism Configuration Card)・JEIドラッグにもすべて反映。旧セーブとの後方互換あり(`ContentKind`欠落時は`ITEM`扱い)。
+  - 既知の制約: JEIの生Fluid/Chemical(アイテムに紐付かない)インジェスト自体のドラッグ&ドロップには非対応(アイテム経由のドラッグのみ対応)。
 
-各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装）で対応済み。
+各連携は「導入されている場合のみ有効化」される設計(`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装)で対応済み。
 
 AE2/Mekanism連携の実装メモ:
 - AE2はForge/1.20.1（15.x系）とNeoForge/1.21.1（19.x系）で`IMemoryCard`のストレージAPIが非互換（旧: `setMemoryCardContents`による自由なCompoundTag保存、新: `IUpgradeableObject`/`IConfigurableObject`/`IPriorityHost`/`IConfigInvHost`のみを対象とするDataComponentベースの固定スキーマで、任意NBT保存の手段が廃止されている）。本MODはEntityであり、いずれのAPIにも自然には乗らないため、`IMemoryCard`は型判定と`notifyUser`によるメッセージ表示のみに使い、実データは独自の名前空間タグキー（`multiitemframe:frame_settings`）でカードのItemStackに直接保存する方式に統一した（両ローダーで完全に同一の挙動）。

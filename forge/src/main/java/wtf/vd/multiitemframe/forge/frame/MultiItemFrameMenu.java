@@ -137,7 +137,11 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
             } else {
                 ItemStack carried = this.getCarried();
                 if (!carried.isEmpty()) {
-                    this.frameContainer.setItem(slotId, carried.copyWithCount(1));
+                    boolean extracted = this.frameContainer instanceof MultiItemFrameEntity frame
+                            && wtf.vd.multiitemframe.forge.compat.container.ContainerContentExtractor.tryExtract(frame, slotId, carried);
+                    if (!extracted) {
+                        this.frameContainer.setItem(slotId, carried.copyWithCount(1));
+                    }
                 }
             }
             return;
@@ -163,6 +167,18 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         return this.frameContainer instanceof MultiItemFrameEntity frame ? frame.getHighlightColor(slot) : null;
     }
 
+    /** Which kind of content a slot displays (used by the screen to pick how to render the slot icon). */
+    public wtf.vd.multiitemframe.frame.DisplayContentKind getContentKind(int slot) {
+        return this.frameContainer instanceof MultiItemFrameEntity frame
+                ? frame.getContentKind(slot)
+                : wtf.vd.multiitemframe.frame.DisplayContentKind.ITEM;
+    }
+
+    /** Registry name of the Fluid/Chemical a slot displays (used by the screen to render the slot icon). */
+    public String getContentId(int slot) {
+        return this.frameContainer instanceof MultiItemFrameEntity frame ? frame.getContentId(slot) : "";
+    }
+
     private void cycleHighlightColor(int slot) {
         if (slot < 0 || slot >= this.slotCount || !(this.frameContainer instanceof MultiItemFrameEntity frame)) {
             return;
@@ -180,13 +196,23 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
         }
     }
 
-    /** Sets a slot's displayed item directly (used by the JEI item-drag ghost ingredient handler). */
+    /**
+     * Sets a slot's displayed item directly (used by the JEI item-drag ghost ingredient handler).
+     * Routed through the same container-content extraction as a manual click (see {@link #clicked}):
+     * dragging a filled container (bucket, Mekanism tank, battery, ...) from JEI's ingredient list
+     * shows its content, exactly like clicking it onto the slot with the mouse would.
+     */
     private void setDisplayItemDirect(int slot, int itemRegistryId) {
         if (slot < 0 || slot >= this.slotCount) {
             return;
         }
         Item item = BuiltInRegistries.ITEM.byId(itemRegistryId);
-        this.frameContainer.setItem(slot, item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item));
+        ItemStack stack = item == null || item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        boolean extracted = !stack.isEmpty() && this.frameContainer instanceof MultiItemFrameEntity frame
+                && wtf.vd.multiitemframe.forge.compat.container.ContainerContentExtractor.tryExtract(frame, slot, stack);
+        if (!extracted) {
+            this.frameContainer.setItem(slot, stack);
+        }
     }
 
     /**
