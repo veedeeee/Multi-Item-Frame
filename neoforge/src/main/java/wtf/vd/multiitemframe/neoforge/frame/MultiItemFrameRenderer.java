@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -28,9 +29,7 @@ import wtf.vd.multiitemframe.frame.HighlightMode;
 public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity> {
 
     private static final ResourceLocation FRAME_TEXTURE = frameTexture("frame.png");
-    private static final ResourceLocation FRAME_GLOW_TEXTURE = frameTexture("frame_glow.png");
     private static final ResourceLocation FRAME_SIDE_TEXTURE = frameTexture("frame_side.png");
-    private static final ResourceLocation FRAME_GLOW_SIDE_TEXTURE = frameTexture("frame_glow_side.png");
     private static final ResourceLocation BACKGROUND_TEXTURE = frameTexture("background.png");
     private static final ResourceLocation HIGHLIGHT_FRAME_TEXTURE = frameTexture("highlight_frame.png");
     private static final ResourceLocation HIGHLIGHT_FILL_TEXTURE = frameTexture("highlight_fill.png");
@@ -55,6 +54,11 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      *  only the rendered size shrinks, exactly like vanilla's frame is visually smaller than the
      *  block it's mounted on. */
     private static final float FOOTPRINT_HALF = 0.5F * (12.0F / 16.0F);
+    /** Forced minimum block light level for the glow variant, mirroring vanilla's Glow Item
+     *  Frame ({@code ItemFrameRenderer#GLOW_FRAME_BRIGHTNESS}, which uses 5) but brighter per
+     *  user request. Glow/non-glow otherwise share identical textures and sounds - this is the
+     *  only remaining functional difference between the two variants. */
+    private static final int GLOW_LIGHT_LEVEL = 9;
 
     private final ItemRenderer itemRenderer;
 
@@ -69,7 +73,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
 
     @Override
     public ResourceLocation getTextureLocation(MultiItemFrameEntity entity) {
-        return entity instanceof GlowMultiItemFrameEntity ? FRAME_GLOW_TEXTURE : FRAME_TEXTURE;
+        // Glow and non-glow share the same texture (see GLOW_LIGHT_LEVEL comment above).
+        return FRAME_TEXTURE;
+    }
+
+    @Override
+    protected int getBlockLightLevel(MultiItemFrameEntity entity, BlockPos pos) {
+        return entity instanceof GlowMultiItemFrameEntity
+                ? Math.max(GLOW_LIGHT_LEVEL, super.getBlockLightLevel(entity, pos))
+                : super.getBlockLightLevel(entity, pos);
     }
 
     @Override
@@ -97,11 +109,10 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         float baseCellWidth = 1.0F / size.columns();
         float baseCellHeight = 1.0F / size.rows();
 
-        boolean glowing = entity instanceof GlowMultiItemFrameEntity;
-        ResourceLocation frameTexture = glowing ? FRAME_GLOW_TEXTURE : FRAME_TEXTURE;
-        ResourceLocation sideTexture = glowing ? FRAME_GLOW_SIDE_TEXTURE : FRAME_SIDE_TEXTURE;
-        renderBox(poseStack, buffer, frameTexture, sideTexture, -halfWidth, -halfHeight, halfWidth, halfHeight,
-                packedLight);
+        // Glow and non-glow variants share identical textures - the only difference is
+        // GLOW_LIGHT_LEVEL forced via getBlockLightLevel() above.
+        renderBox(poseStack, buffer, FRAME_TEXTURE, FRAME_SIDE_TEXTURE, -halfWidth, -halfHeight, halfWidth,
+                halfHeight, packedLight);
 
         // Background/highlight/item layers stack toward -Z rather than +Z: empirical in-game
         // testing showed items/highlights only appeared on the far side of the mounting block
