@@ -225,15 +225,21 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     // --- Placement / survival (mirrors vanilla ItemFrame) ---
 
+    // Always a fixed single-block footprint, exactly like vanilla ItemFrame - the multi-slot grid
+    // (FrameSize.columns()/rows()) is a purely visual subdivision drawn within that one block's
+    // face, not an actual multi-block placement (unlike vanilla Painting, which really does occupy
+    // more than one block). Scaling this with FrameSize was a bug: it made placement require a
+    // 2x2/1x2 clearance and perturbed the wall-flush centering math (which depends on width/height
+    // via the axis-perpendicular size), causing non-1x1 frames to render at a shifted position
+    // after being placed.
     @Override
     protected AABB calculateBoundingBox(BlockPos pos, Direction direction) {
         float depth = 0.0625F;
         Vec3 center = Vec3.atCenterOf(pos).relative(direction, -0.46875);
         Direction.Axis axis = direction.getAxis();
-        FrameSize size = this.getFrameSize();
-        double sizeX = axis == Direction.Axis.X ? depth : size.columns();
-        double sizeY = axis == Direction.Axis.Y ? depth : size.rows();
-        double sizeZ = axis == Direction.Axis.Z ? depth : size.columns();
+        double sizeX = axis == Direction.Axis.X ? depth : 1.0;
+        double sizeY = axis == Direction.Axis.Y ? depth : 1.0;
+        double sizeZ = axis == Direction.Axis.Z ? depth : 1.0;
         return AABB.ofSize(center, sizeX, sizeY, sizeZ);
     }
 

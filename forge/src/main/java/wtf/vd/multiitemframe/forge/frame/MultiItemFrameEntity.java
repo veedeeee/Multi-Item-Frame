@@ -124,14 +124,20 @@ public class MultiItemFrameEntity extends HangingEntity implements Container, Me
 
     // --- Bounding box size (1.20.1 uses pixel-unit getWidth()/getHeight(), unlike 1.21.1's calculateBoundingBox) ---
 
+    // Always a fixed single-block footprint, exactly like vanilla ItemFrame - the multi-slot grid
+    // (FrameSize.columns()/rows()) is a purely visual subdivision drawn within that one block's
+    // face, not an actual multi-block placement (unlike vanilla Painting, which really does span
+    // more than one block). Scaling this with FrameSize was a bug: it made placement require a 2x2/1x2
+    // clearance and perturbed HangingEntity's wall-flush centering math (which depends on
+    // width/height), causing non-1x1 frames to render at a shifted position after being placed.
     @Override
     public int getWidth() {
-        return this.getFrameSize().columns() * 16;
+        return 16;
     }
 
     @Override
     public int getHeight() {
-        return this.getFrameSize().rows() * 16;
+        return 16;
     }
 
     // --- Container (slot storage backing the GUI) ---

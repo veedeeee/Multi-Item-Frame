@@ -38,8 +38,11 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
     /** Physical thickness of the frame (1px = 1/16 block), matching vanilla Item Frame's thin panel. */
     private static final float THICKNESS = 0.0625F;
     private static final float HALF_THICKNESS = THICKNESS / 2.0F;
-    /** Small forward step (blocks) between stacked decal layers so they don't z-fight each other. */
-    private static final float LAYER_STEP = 0.002F;
+    /** Forward step (blocks) between stacked decal layers so they don't z-fight each other.
+     *  Must be large enough to stay resolvable in the depth buffer at normal viewing distances -
+     *  0.002 (the original value) was too small and caused inconsistent front/back z-fighting
+     *  between the frame's own front face and the background/highlight/item layers stacked on it. */
+    private static final float LAYER_STEP = 0.03F;
     /** Item icons in single-slot (1x1) frames render at vanilla Item Frame scale; multi-slot frames
      *  shrink items an extra 50% so neighboring slots' items don't visually overlap. */
     private static final float ITEM_SCALE_SINGLE_SLOT = 0.5F;
