@@ -126,7 +126,9 @@
   - 判定順序: Fluid(vanilla Forge/NeoForgeのFluidHandlerItemケーパビリティ、MOD不問) → Mekanism Gas/Infusion/Pigment/Slurry(Forge、`mekanism`導入時のみ) / Mekanism統合Chemical(NeoForge、10.6+の統合Chemical APIに追従。`mekanism`導入時のみ) → 汎用FEエネルギー(vanilla Forge/NeoForgeのEnergyStorageケーパビリティ、MOD不問)。いずれにも該当しなければ従来通りアイテム自体を表示。
   - Mekanismの`api`限定依存(`mekanism.common`非公開)のため、ケーパビリティトークンは`CapabilityManager.get(new CapabilityToken<>(){})`(Forge)/`ItemCapability.createVoid(...)`(NeoForge)で独自に取得し、Mekanism内部の実装と同一インスタンスに解決させている。
   - エンティティの同期データに`ContentKind`/`ContentId`を追加(`ITEM`のときのみ既存の`ItemStack`を使用)、NBT保存・設定コピペ(AE2 Memory Card/Mekanism Configuration Card)・JEIドラッグにもすべて反映。旧セーブとの後方互換あり(`ContentKind`欠落時は`ITEM`扱い)。
-  - 既知の制約: JEIの生Fluid/Chemical(アイテムに紐付かない)インジェスト自体のドラッグ&ドロップには非対応(アイテム経由のドラッグのみ対応)。
+- [x] **JEIからの生Fluid/Chemicalインジェスト直接ドラッグ対応**(forge/neoforge両方): 上記のコンテナ経由ドラッグに加え、JEIのインジェストリスト上のFluid/Mekanism Chemical(Forge: Gas/Infusion/Pigment/Slurry)をアイテムに紐付けず直接アイテムスロットへドラッグ&ドロップした場合にも表示種別を設定できるようにした。バケツなどのコンテナアイテムをドラッグしながら右クリックで中身を切り替える操作が困難/実質不可能なため追加。
+  - `IGhostIngredientHandler#getTargetsTyped`で`ITypedIngredient#getIngredient()`(型消去された生インジェスト値)を追加で検査し、`FluidStack`(Forge: `net.minecraftforge.fluids`、NeoForge: `net.neoforged.neoforge.fluids`)および`ChemicalStack`(Forge: `GasStack`/`InfusionStack`/`PigmentStack`/`SlurryStack`のいずれか、NeoForge: 統合`ChemicalStack`)を判定してアイテムスロット領域をドロップ対象に追加。
+  - ボタンクリック機構(`clickMenuButton`)は`int`しか運べないため、既存の`DIRECT_ITEM_BASE`と同じ手法で新規`DIRECT_CONTENT_BASE`ボタンID範囲(`(slot, kind, registry id)`をエンコード)を追加。Fluidはvanillaレジストリ(`BuiltInRegistries.FLUID`)のint idをそのまま利用。Mekanism ChemicalはForge側`IForgeRegistry`が素のインターフェースではint id取得手段を公開していないため、実体である`net.minecraftforge.registries.ForgeRegistry`へダウンキャストして`getID`/`getValue(int)`を利用(`MekanismChemicalCompat`に追加)。NeoForge側は統合Chemicalがvanilla `Registry`実装のため`MekanismAPI.CHEMICAL_REGISTRY`の`getId`/`byId`をそのまま利用。
 
 各連携は「導入されている場合のみ有効化」される設計(`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装)で対応済み。
 

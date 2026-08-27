@@ -13,6 +13,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
+import net.minecraftforge.registries.ForgeRegistry;
+import net.minecraftforge.registries.IForgeRegistry;
 import wtf.vd.multiitemframe.forge.frame.MultiItemFrameEntity;
 import wtf.vd.multiitemframe.frame.DisplayContentKind;
 
@@ -99,5 +101,61 @@ public final class MekanismChemicalCompat {
             case SLURRY -> MekanismAPI.slurryRegistry().getValue(rl);
             default -> null;
         };
+    }
+
+    /**
+     * Forge's own stable per-session integer registry id for a Gas/Infusion/Pigment/Slurry
+     * content id, or {@code -1} if unresolved. Used to encode a JEI-dragged chemical ingredient
+     * into a menu button-click id (see {@code MultiItemFrameMenu#DIRECT_CONTENT_BASE}), the same
+     * trick already used for plain items via {@code BuiltInRegistries.ITEM.getId}.
+     *
+     * <p>{@link IForgeRegistry} itself doesn't expose an int-id lookup, but Mekanism's chemical
+     * registries (obtained via {@link MekanismAPI}) are always backed by Forge's own {@link
+     * ForgeRegistry} implementation, which does - so this downcasts to reach it, mirroring how
+     * Forge's registry sync packet works internally.</p>
+     */
+    public static int getRegistryId(DisplayContentKind kind, String id) {
+        Chemical<?> chemical = resolveChemical(kind, id);
+        if (chemical == null) {
+            return -1;
+        }
+        return switch (kind) {
+            case GAS -> rawId(MekanismAPI.gasRegistry(), (mekanism.api.chemical.gas.Gas) chemical);
+            case INFUSION -> rawId(MekanismAPI.infuseTypeRegistry(), (mekanism.api.chemical.infuse.InfuseType) chemical);
+            case PIGMENT -> rawId(MekanismAPI.pigmentRegistry(), (mekanism.api.chemical.pigment.Pigment) chemical);
+            case SLURRY -> rawId(MekanismAPI.slurryRegistry(), (mekanism.api.chemical.slurry.Slurry) chemical);
+            default -> -1;
+        };
+    }
+
+    /** Reverse of {@link #getRegistryId}: resolves a chemical back to its content id string
+     *  (registry name) from Forge's per-session integer registry id, or {@code null} if the id
+     *  no longer resolves to anything (e.g. out of range, or the value was removed). */
+    public static String resolveContentId(DisplayContentKind kind, int registryId) {
+        return switch (kind) {
+            case GAS -> rawKey(MekanismAPI.gasRegistry(), registryId);
+            case INFUSION -> rawKey(MekanismAPI.infuseTypeRegistry(), registryId);
+            case PIGMENT -> rawKey(MekanismAPI.pigmentRegistry(), registryId);
+            case SLURRY -> rawKey(MekanismAPI.slurryRegistry(), registryId);
+            default -> null;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> int rawId(IForgeRegistry<T> registry, T value) {
+        return registry instanceof ForgeRegistry<T> forgeRegistry ? forgeRegistry.getID(value) : -1;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> String rawKey(IForgeRegistry<T> registry, int registryId) {
+        if (!(registry instanceof ForgeRegistry<T> forgeRegistry)) {
+            return null;
+        }
+        T value = forgeRegistry.getValue(registryId);
+        if (value == null) {
+            return null;
+        }
+        ResourceLocation key = registry.getKey(value);
+        return key == null ? null : key.toString();
     }
 }

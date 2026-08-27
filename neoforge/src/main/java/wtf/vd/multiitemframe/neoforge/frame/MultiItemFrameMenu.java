@@ -12,6 +12,9 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import wtf.vd.multiitemframe.frame.DisplayContentKind;
 import wtf.vd.multiitemframe.frame.FrameSize;
 import wtf.vd.multiitemframe.neoforge.registry.ModMenus;
 
@@ -58,7 +61,8 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
      *   [0, MAX_SLOTS)                                  - cycle highlight mode for slot id
      *   [MAX_SLOTS, DIRECT_COLOR_BASE)                   - cycle highlight color for slot (id - MAX_SLOTS)
      *   [DIRECT_COLOR_BASE, DIRECT_ITEM_BASE)             - direct-set highlight color (JEI dye drag)
-     *   [DIRECT_ITEM_BASE, +inf)                          - direct-set displayed item (JEI item drag)
+     *   [DIRECT_ITEM_BASE, DIRECT_CONTENT_BASE)           - direct-set displayed item (JEI item drag)
+     *   [DIRECT_CONTENT_BASE, +inf)                       - direct-set Fluid/Chemical content (JEI raw ingredient drag)
      */
     static final int COLOR_CYCLE_BASE = FrameSize.MAX_SLOTS;
     /** One slot's worth of direct-color ids: 16 dye colors plus one "clear" value. */
@@ -69,6 +73,17 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
     static final int ITEM_ID_SPACE = 1_000_000;
     /** First button id of the direct-item-set range (see {@link #clickMenuButton}). */
     public static final int DIRECT_ITEM_BASE = DIRECT_COLOR_BASE + FrameSize.MAX_SLOTS * COLOR_ID_SPACE;
+    private static final int DIRECT_ITEM_END = DIRECT_ITEM_BASE + FrameSize.MAX_SLOTS * ITEM_ID_SPACE;
+    /** Generous per-(slot,kind) id space for direct-content-set, comfortably larger than any
+     *  Fluid/Mekanism-chemical registry (much smaller than the item registry, so this can be
+     *  smaller than {@link #ITEM_ID_SPACE}). */
+    static final int CONTENT_ID_SPACE = 200_000;
+    /** One "row" of content-kind ids per slot: {@link DisplayContentKind#values()} indexed by
+     *  ordinal, even though {@code ITEM}/{@code ENERGY} are unused here (no JEI ingredient exists
+     *  to drag for either) - kept for simple, stable ordinal-based indexing. */
+    static final int CONTENT_KIND_COUNT = DisplayContentKind.values().length;
+    /** First button id of the direct-content-set range (see {@link #clickMenuButton}). */
+    public static final int DIRECT_CONTENT_BASE = DIRECT_ITEM_END;
 
     private final Container frameContainer;
     public final int slotCount;
@@ -213,6 +228,32 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
     }
 
     /**
+     * Sets a slot's displayed Fluid/Chemical content directly by registry id (used by the JEI
+     * raw-ingredient-drag ghost handler: JEI's ghost-ingredient click mechanism can only
+     * transmit a plain {@code int}, not a {@code FluidStack}/{@code ChemicalStack}, so the
+     * dragged ingredient's type is resolved to a registry id client-side and decoded back here -
+     * see {@code MultiItemFrameScreen#sendDirectContent}). Fluid uses the vanilla registry
+     * directly; Chemical uses Mekanism's own {@code MekanismAPI.CHEMICAL_REGISTRY} (also a
+     * vanilla {@code Registry}, since the NeoForge Mekanism build unified all chemical types).
+     */
+    private void setDisplayContentDirect(int slot, DisplayContentKind kind, int registryId) {
+        if (slot < 0 || slot >= this.slotCount || !(this.frameContainer instanceof MultiItemFrameEntity frame)) {
+            return;
+        }
+        String contentId = switch (kind) {
+            case FLUID -> {
+                Fluid fluid = BuiltInRegistries.FLUID.byId(registryId);
+                yield fluid == null || fluid == Fluids.EMPTY ? null : String.valueOf(BuiltInRegistries.FLUID.getKey(fluid));
+            }
+            case CHEMICAL -> wtf.vd.multiitemframe.neoforge.compat.mekanism.MekanismChemicalCompat.resolveContentId(registryId);
+            default -> null;
+        };
+        if (contentId != null) {
+            frame.setDisplayContent(slot, kind, contentId);
+        }
+    }
+
+    /**
      * Handles the mode/color toggle buttons rendered in the screen (vanilla's generic
      * button-click mechanism, the same one used by e.g. the Loom/Beacon screens). See the id
      * range layout documented next to the {@code *_BASE}/{@code *_SPACE} constants above.
@@ -234,9 +275,19 @@ public class MultiItemFrameMenu extends AbstractContainerMenu {
             this.setHighlightColorDirect(slot, value >= DyeColor.values().length ? null : DyeColor.byId(value));
             return true;
         }
-        if (id >= DIRECT_ITEM_BASE) {
+        if (id >= DIRECT_ITEM_BASE && id < DIRECT_CONTENT_BASE) {
             int offset = id - DIRECT_ITEM_BASE;
             this.setDisplayItemDirect(offset / ITEM_ID_SPACE, offset % ITEM_ID_SPACE);
+            return true;
+        }
+        if (id >= DIRECT_CONTENT_BASE) {
+            int offset = id - DIRECT_CONTENT_BASE;
+            int slotSpan = CONTENT_KIND_COUNT * CONTENT_ID_SPACE;
+            int slot = offset / slotSpan;
+            int remainder = offset % slotSpan;
+            DisplayContentKind kind = DisplayContentKind.byOrdinalSafe(remainder / CONTENT_ID_SPACE);
+            int registryId = remainder % CONTENT_ID_SPACE;
+            this.setDisplayContentDirect(slot, kind, registryId);
             return true;
         }
         return false;

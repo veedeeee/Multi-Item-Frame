@@ -12,6 +12,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import wtf.vd.multiitemframe.frame.DisplayContentKind;
 import wtf.vd.multiitemframe.frame.HighlightMode;
 
 /**
@@ -157,6 +158,19 @@ public class MultiItemFrameScreen extends AbstractContainerScreen<MultiItemFrame
     public void sendDirectItem(int slot, ItemStack stack) {
         int itemId = stack.isEmpty() ? BuiltInRegistries.ITEM.getId(Items.AIR) : BuiltInRegistries.ITEM.getId(stack.getItem());
         this.clickButton(MultiItemFrameMenu.DIRECT_ITEM_BASE + slot * MultiItemFrameMenu.ITEM_ID_SPACE + itemId);
+    }
+
+    /**
+     * Sets a slot's displayed Fluid/Chemical content directly by registry id (used by JEI's raw
+     * Fluid/Chemical ingredient-drag ghost handler - see {@code MultiItemFrameJeiPlugin} - for
+     * ingredients that aren't backed by an {@code ItemStack}, e.g. dragging molten iron straight
+     * from JEI's ingredient list rather than a bucket containing it).
+     */
+    public void sendDirectContent(int slot, DisplayContentKind kind, int registryId) {
+        int slotBase = MultiItemFrameMenu.DIRECT_CONTENT_BASE
+                + slot * (MultiItemFrameMenu.CONTENT_KIND_COUNT * MultiItemFrameMenu.CONTENT_ID_SPACE)
+                + kind.ordinal() * MultiItemFrameMenu.CONTENT_ID_SPACE;
+        this.clickButton(slotBase + registryId);
     }
 
     /**

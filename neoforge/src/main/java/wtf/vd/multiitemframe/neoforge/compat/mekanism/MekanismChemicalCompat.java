@@ -74,4 +74,26 @@ public final class MekanismChemicalCompat {
         ResourceLocation rl = ResourceLocation.tryParse(id);
         return rl == null ? null : MekanismAPI.CHEMICAL_REGISTRY.get(rl);
     }
+
+    /** Mekanism's stable per-session integer registry id for a chemical content id (the vanilla
+     *  {@code MekanismAPI.CHEMICAL_REGISTRY} always exposes one, since it's a proper vanilla
+     *  {@code Registry}), or {@code -1} if unresolved. Used to encode a JEI-dragged chemical
+     *  ingredient into a menu button-click id (see {@code MultiItemFrameMenu#DIRECT_CONTENT_BASE}),
+     *  the same trick already used for plain items via {@code BuiltInRegistries.ITEM.getId}. */
+    public static int getRegistryId(String id) {
+        Chemical chemical = resolveChemical(id);
+        return chemical == null ? -1 : MekanismAPI.CHEMICAL_REGISTRY.getId(chemical);
+    }
+
+    /** Reverse of {@link #getRegistryId}: resolves a chemical back to its content id string
+     *  (registry name) from its integer registry id, or {@code null} if the id no longer resolves
+     *  to anything (e.g. out of range, or the value was removed). */
+    public static String resolveContentId(int registryId) {
+        Chemical chemical = MekanismAPI.CHEMICAL_REGISTRY.byId(registryId);
+        if (chemical == null) {
+            return null;
+        }
+        ResourceLocation key = MekanismAPI.CHEMICAL_REGISTRY.getKey(chemical);
+        return key == null ? null : key.toString();
+    }
 }
