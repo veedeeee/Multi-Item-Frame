@@ -43,10 +43,10 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      *  0.002 (the original value) was too small and caused inconsistent front/back z-fighting
      *  between the frame's own front face and the background/highlight/item layers stacked on it. */
     private static final float LAYER_STEP = 0.03F;
-    /** Item icons in single-slot (1x1) frames render at vanilla Item Frame scale; multi-slot frames
-     *  shrink items an extra 50% so neighboring slots' items don't visually overlap. */
+    /** Item icons render at vanilla Item Frame scale (0.5) within a full 1x1 cell; multi-slot
+     *  frames additionally shrink by each cell's own share of the single-block frame (see
+     *  {@code render()}) so items never overflow their smaller cell. */
     private static final float ITEM_SCALE_SINGLE_SLOT = 0.5F;
-    private static final float ITEM_SCALE_MULTI_SLOT = 0.25F;
 
     private final ItemRenderer itemRenderer;
 
@@ -80,8 +80,14 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - entity.getYRot()));
 
         FrameSize size = entity.getFrameSize();
-        float halfWidth = size.columns() / 2.0F;
-        float halfHeight = size.rows() / 2.0F;
+        // The frame's physical footprint is always exactly 1x1 block (matching its 1x1 collision
+        // box - see MultiItemFrameEntity#calculateBoundingBox()); FrameSize.columns()/rows() only
+        // subdivide that single block face into a grid of smaller cells, they never make the
+        // rendered frame itself larger than one block.
+        final float halfWidth = 0.5F;
+        final float halfHeight = 0.5F;
+        float cellWidth = 1.0F / size.columns();
+        float cellHeight = 1.0F / size.rows();
 
         boolean glowing = entity instanceof GlowMultiItemFrameEntity;
         ResourceLocation frameTexture = glowing ? FRAME_GLOW_TEXTURE : FRAME_TEXTURE;
@@ -94,20 +100,23 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         if (entity.isBackgroundVisible()) {
             for (int slot = 0; slot < size.slotCount(); slot++) {
                 double[] gridPos = size.slotPosition(slot);
-                float left = -halfWidth + (float) gridPos[0];
-                float top = halfHeight - (float) gridPos[1];
-                renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - 1.0F, left + 1.0F, top, depth,
-                        0xFFFFFFFF, packedLight, 1.0F);
+                float left = -halfWidth + (float) gridPos[0] * cellWidth;
+                float top = halfHeight - (float) gridPos[1] * cellHeight;
+                renderQuad(poseStack, buffer, BACKGROUND_TEXTURE, left, top - cellHeight, left + cellWidth, top,
+                        depth, 0xFFFFFFFF, packedLight, 1.0F);
             }
             depth += LAYER_STEP;
         }
 
-        float itemScale = size.slotCount() > 1 ? ITEM_SCALE_MULTI_SLOT : ITEM_SCALE_SINGLE_SLOT;
+        // Items keep vanilla Item Frame's scale (0.5) within a full 1x1 cell (single-slot frames);
+        // multi-slot frames additionally shrink by each cell's own share of the block so items
+        // never overflow their (now smaller) cell.
+        float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellWidth, cellHeight);
 
         for (int slot = 0; slot < size.slotCount(); slot++) {
             double[] gridPos = size.slotPosition(slot);
-            float left = -halfWidth + (float) gridPos[0];
-            float top = halfHeight - (float) gridPos[1];
+            float left = -halfWidth + (float) gridPos[0] * cellWidth;
+            float top = halfHeight - (float) gridPos[1] * cellHeight;
 
             HighlightMode mode = entity.getHighlightMode(slot);
             DyeColor color = entity.getHighlightColor(slot);
@@ -116,14 +125,14 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 ResourceLocation overlay = mode == HighlightMode.FRAME
                         ? HIGHLIGHT_FRAME_TEXTURE
                         : HIGHLIGHT_FILL_TEXTURE;
-                renderQuad(poseStack, buffer, overlay, left, top - 1.0F, left + 1.0F, top, depth,
+                renderQuad(poseStack, buffer, overlay, left, top - cellHeight, left + cellWidth, top, depth,
                         0xFF000000 | rgb, packedLight, 1.0F);
             }
 
             ItemStack stack = entity.getItem(slot);
             if (!stack.isEmpty()) {
                 poseStack.pushPose();
-                poseStack.translate(left + 0.5F, top - 0.5F, depth + LAYER_STEP);
+                poseStack.translate(left + cellWidth / 2.0F, top - cellHeight / 2.0F, depth + LAYER_STEP);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
@@ -158,7 +167,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      */
     private static void renderSide(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
             float ax, float ay, float bx, float by, int packedLight, float nx, float ny) {
-        VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutout(texture));
+        VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutoutNoCull(texture));
         PoseStack.Pose pose = poseStack.last();
         vertex(consumer, pose, bx, by, -HALF_THICKNESS, 1.0F, 1.0F, 255, 255, 255, 255, nx, ny, 0.0F, packedLight);
         vertex(consumer, pose, bx, by, HALF_THICKNESS, 1.0F, 0.0F, 255, 255, 255, 255, nx, ny, 0.0F, packedLight);
@@ -174,7 +183,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      */
     private static void renderQuad(PoseStack poseStack, MultiBufferSource buffer, ResourceLocation texture,
             float x0, float y0, float x1, float y1, float z, int argbColor, int packedLight, float normalZ) {
-        VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutout(texture));
+        VertexConsumer consumer = buffer.getBuffer(RenderType.entityCutoutNoCull(texture));
         PoseStack.Pose pose = poseStack.last();
         int a = (argbColor >>> 24) & 0xFF;
         int r = (argbColor >> 16) & 0xFF;
