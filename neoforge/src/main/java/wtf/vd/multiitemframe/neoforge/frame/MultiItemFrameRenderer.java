@@ -43,6 +43,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
      *  needs an actual - but kept far below any perceptible-gap threshold - depth offset to avoid
      *  z-fighting against the coincident background layer). */
     private static final float ITEM_DEPTH_EPSILON = 0.0005F;
+    /** Tiny real per-layer depth step between the background and highlight content quads. Both
+     *  layers already use the Z-offset decal RenderType (see {@code decal} parameter of
+     *  {@code renderQuad}) to avoid fighting against the frame's own back face, but that trick
+     *  nudges every decal-flagged quad by the exact same view-space amount, so two decal quads
+     *  drawn at the same world-space depth (e.g. background and a FILL-mode highlight covering
+     *  the same cell) are still exactly coincident with each other and can still z-fight. A real
+     *  - but, like {@link #ITEM_DEPTH_EPSILON}, imperceptibly small - world-space step between
+     *  them removes that remaining ambiguity. */
+    private static final float CONTENT_LAYER_STEP = 0.0005F;
     /** Item icons render at vanilla Item Frame scale (0.5) within a full 1x1 cell; multi-slot
      *  frames additionally shrink by each cell's own share of the single-block frame (see
      *  {@code render()}) so items never overflow their smaller cell. */
@@ -136,9 +145,15 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
         // with RenderType.entityCutoutNoCullZOffset (see renderQuad's `decal` parameter), which
         // nudges the written depth value slightly toward the camera in view space (the same trick
         // vanilla uses for block-breaking overlays) without moving the geometry itself, so there's
-        // no gap and no flicker. The item render call below can't be routed through a custom
-        // RenderType (it's drawn via the vanilla ItemRenderer, which picks its own per-model render
-        // types), so it keeps a real - but now tiny, sub-visible - translate instead.
+        // no gap and no flicker against the box. That Z-offset RenderType state is identical for
+        // every decal-flagged quad though, so it does NOT separate the content sub-layers from
+        // each other - a highlight quad covering the same cell as the background is still exactly
+        // coincident with it, and would still z-fight without further help. Each content
+        // sub-layer (background, then highlight, then item) is therefore additionally nudged by
+        // one more CONTENT_LAYER_STEP of real depth than the previous one - tiny enough (a few
+        // multiples of ITEM_DEPTH_EPSILON) to stay well under the visible-gap threshold that made
+        // the old, much larger LAYER_STEP look detached, while still being a real, unambiguous
+        // depth difference the GPU can sort deterministically.
         float depth = -HALF_THICKNESS;
 
         if (entity.isBackgroundVisible()) {
@@ -153,6 +168,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
             }
         }
 
+        float highlightDepth = depth - CONTENT_LAYER_STEP;
         for (int slot = 0; slot < size.slotCount(); slot++) {
             float[] bounds = slotBounds(size, slot, halfWidth, halfHeight, baseCellWidth, baseCellHeight);
             float left = bounds[0];
@@ -166,10 +182,10 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 int rgb = color.getFireworkColor();
                 if (mode == HighlightMode.FRAME) {
                     renderHighlightFrameBorder(poseStack, buffer, left, top - cellH, left + cellW, top,
-                            depth, 0xFF000000 | rgb, packedLight);
+                            highlightDepth, 0xFF000000 | rgb, packedLight);
                 } else {
                     renderQuad(poseStack, buffer, HIGHLIGHT_FILL_TEXTURE, left, top - cellH, left + cellW,
-                            top, depth, 0xFF000000 | rgb, packedLight, -1.0F, true);
+                            top, highlightDepth, 0xFF000000 | rgb, packedLight, -1.0F, true);
                 }
             }
 
@@ -181,7 +197,7 @@ public class MultiItemFrameRenderer extends EntityRenderer<MultiItemFrameEntity>
                 // lone slot - see slotBounds) cell.
                 float itemScale = ITEM_SCALE_SINGLE_SLOT * Math.min(cellW, cellH);
                 poseStack.pushPose();
-                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, depth - ITEM_DEPTH_EPSILON);
+                poseStack.translate(left + cellW / 2.0F, top - cellH / 2.0F, highlightDepth - ITEM_DEPTH_EPSILON);
                 poseStack.scale(itemScale, itemScale, itemScale);
                 this.itemRenderer.renderStatic(stack, ItemDisplayContext.FIXED, packedLight, OverlayTexture.NO_OVERLAY,
                         poseStack, buffer, entity.level(), entity.getId());
