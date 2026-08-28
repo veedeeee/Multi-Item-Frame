@@ -23,7 +23,7 @@ import wtf.vd.multiitemframe.frame.DisplayContentKind;
  * sprites (fluids, Mekanism chemicals, and Mekanism's own energy bar icon) live in the vanilla
  * block atlas (see {@code MekanismRenderer#getSprite}).</p>
  */
-final class ContentIconResolver {
+public final class ContentIconResolver {
 
     /** Sprite location Mekanism itself uses for its energy bars/tanks (see
      *  {@code mekanism.client.render.MekanismRenderer#energyIcon}); referenced directly by
@@ -34,7 +34,7 @@ final class ContentIconResolver {
     private ContentIconResolver() {
     }
 
-    static TextureAtlasSprite getSprite(DisplayContentKind kind, String id) {
+    public static TextureAtlasSprite getSprite(DisplayContentKind kind, String id) {
         ResourceLocation location = switch (kind) {
             case FLUID -> fluidStillTexture(id);
             case GAS, INFUSION, PIGMENT, SLURRY -> ModList.get().isLoaded("mekanism") ? MekanismChemicalCompat.getIcon(kind, id) : null;
@@ -48,7 +48,7 @@ final class ContentIconResolver {
     }
 
     /** ARGB tint to multiply the sprite by (opaque white/{@code 0xFFFFFFFF} = no tint). */
-    static int getTintARGB(DisplayContentKind kind, String id) {
+    public static int getTintARGB(DisplayContentKind kind, String id) {
         int rgb = switch (kind) {
             case FLUID -> fluidTint(id);
             case GAS, INFUSION, PIGMENT, SLURRY -> ModList.get().isLoaded("mekanism") ? MekanismChemicalCompat.getTint(kind, id) : 0xFFFFFF;
