@@ -83,7 +83,7 @@ $
   - `&`: Multi Item Frame 1x2 (`multiitemframe:frame_1x2`)
   - `$`: Multi Item Frame 2x1 (`multiitemframe:frame_2x1`)
 ### Glowing version
-Also has glowing version (`multiitemframe:glow_frame_{size}`).
+Also has glowing version (`multiitemframe:glow_frame_{size}`). This emits light as Level 9.
 `Glowing Multi Item Frame 1x1` is craftable with Non-glow + Glowstone Dust (shapeless). Other sizes are using glowing correspondings.
 
 ## Dependencies
