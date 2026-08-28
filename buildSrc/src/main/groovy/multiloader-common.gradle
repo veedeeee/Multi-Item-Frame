@@ -106,6 +106,16 @@ jar {
 }
 
 processResources {
+    // Mod logo shown on the Mods screen (referenced by `logoFile` in mods.toml/neoforge.mods.toml).
+    // Copied only here (not per-loader) since forge/neoforge pull common's processed resources in
+    // via `configurations.commonResources` (see multiloader-loader.gradle) - copying it again in
+    // each loader's own processResources would duplicate the same output path.
+    if (project.name == 'common') {
+        from(rootProject.file('images/mod_logo.png')) {
+            rename { "${mod_id}.png" }
+        }
+    }
+
     var expandProps = ['version'                      : version,
                        'group'                        : project.group, //Else we target the task's group.
                        'minecraft_version'            : effectiveMinecraftVersion,
