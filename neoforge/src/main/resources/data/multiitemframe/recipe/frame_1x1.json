@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "minecraft:item_frame",
+    "minecraft:redstone"
+  ],
+  "result": {
+    "id": "multiitemframe:frame_1x1",
+    "count": 1
+  }
+}

@@ -1,0 +1,57 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev'
+}
+
+neoForge {
+    version = neoforge_version
+    // Automatically enable neoforge AccessTransformers if the file exists
+    def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformers.add(at.absolutePath)
+    }
+    parchment {
+        minecraftVersion = parchment_minecraft
+        mappingsVersion = parchment_version
+    }
+    runs {
+        configureEach {
+            systemProperty('neoforge.enabledGameTestNamespaces', mod_id)
+            ideName = "NeoForge ${it.name.capitalize()} (${project.path})" // Unify the run config names with fabric
+        }
+        client {
+            client()
+        }
+        data {
+            data()
+        }
+        server {
+            server()
+        }
+    }
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    // Mekanism API (optional integration, Ch.5). AE2/JEI already resolve via common's Modrinth/BlameJared repos.
+    maven {
+        name = 'Modmaven'
+        url = 'https://modmaven.dev/'
+        content { includeGroup 'mekanism' }
+    }
+}
+
+dependencies {
+    // Optional soft dependencies (Ch.5): only used behind runtime ModList checks, never required.
+    compileOnly "maven.modrinth:ae2:${ae2_version_neoforge}"
+    compileOnly "mekanism:Mekanism:${mekanism_version_neoforge}:api"
+    compileOnly "mezz.jei:jei-1.21.1-common-api:${jei_version_neoforge}"
+    compileOnly "mezz.jei:jei-1.21.1-neoforge-api:${jei_version_neoforge}"
+    compileOnly "maven.modrinth:jade:${jade_version_neoforge}"
+}

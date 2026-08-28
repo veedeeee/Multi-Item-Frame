@@ -1,0 +1,155 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+def effectiveMinecraftVersion = project.findProperty("${project.name}_minecraft_version") ?: minecraft_version
+def effectiveMinecraftVersionRange = project.findProperty("${project.name}_minecraft_version_range") ?: minecraft_version_range
+def effectiveNeoForgeVersion = project.findProperty("${project.name}_neoforge_version") ?: neoforge_version
+def effectiveNeoForgeLoaderVersionRange = project.findProperty("${project.name}_neoforge_loader_version_range") ?: neoforge_loader_version_range
+
+base {
+    archivesName = "${archives_name}-${project.name}-${effectiveMinecraftVersion}"
+}
+
+def effectiveJavaVersion = project.findProperty("${project.name}_java_version") ?: java_version
+
+configurations.configureEach {
+    if (canBeResolved && (name == 'compileClasspath' || name == 'runtimeClasspath' || name == 'annotationProcessor')) {
+        attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, java_version.toInteger())
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(effectiveJavaVersion)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Mojang'
+        url = 'https://libraries.minecraft.net'
+    }
+    // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusively_found_in_one_repository
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Sponge'
+                url = 'https://repo.spongepowered.org/repository/maven-public'
+            }
+        }
+        filter { includeGroupAndSubgroups('org.spongepowered') }
+    }
+    exclusiveContent {
+        forRepositories(maven {
+            name = 'ParchmentMC'
+            url = 'https://maven.parchmentmc.org/'
+        },
+                maven {
+                    name = "NeoForge"
+                    url = 'https://maven.neoforged.net/releases'
+                })
+        filter { includeGroup('org.parchmentmc.data') }
+    }
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter { includeGroup('maven.modrinth') }
+    }
+}
+
+// Declare capabilities on the outgoing configurations.
+// Read more about capabilities here: https://docs.gradle.org/current/userguide/component_capabilities.html#sec:declaring-additional-capabilities-for-a-local-component
+['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
+    configurations."$variant".outgoing {
+        capability("$group:${base.archivesName.get()}:$version")
+        capability("$group:$mod_id-${project.name}-${minecraft_version}:$version")
+        capability("$group:$mod_id:$version")
+    }
+    publishing.publications.configureEach {
+        suppressPomMetadataWarningsFor(variant)
+    }
+}
+
+sourcesJar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${mod_name}" }
+    }
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${mod_name}" }
+    }
+
+    manifest {
+        attributes(['Specification-Title'   : mod_name,
+                    'Specification-Vendor'  : mod_author,
+                    'Specification-Version' : project.jar.archiveVersion,
+                    'Implementation-Title'  : project.name,
+                    'Implementation-Version': project.jar.archiveVersion,
+                    'Implementation-Vendor' : mod_author,
+                    'Built-On-Minecraft'    : minecraft_version])
+    }
+}
+
+processResources {
+    // Mod logo shown on the Mods screen (referenced by `logoFile` in mods.toml/neoforge.mods.toml).
+    // Applied per-project (forge/neoforge/common) rather than only in forge/neoforge's own
+    // processResources: forge/neoforge's `from(configurations.commonResources)` (see
+    // multiloader-loader.gradle) points at common's *raw* `src/main/resources` source directory,
+    // not common's processed build output, so a copy step placed only in common's processResources
+    // would never actually reach the forge/neoforge jars.
+    from(rootProject.file('images/mod_logo.png')) {
+        rename { "${mod_id}.png" }
+    }
+
+    var expandProps = ['version'                      : version,
+                       'group'                        : project.group, //Else we target the task's group.
+                       'minecraft_version'            : effectiveMinecraftVersion,
+                       'minecraft_version_range'      : effectiveMinecraftVersionRange,
+                       'fabric_version'               : fabric_version,
+                       'fabric_loader_version'        : fabric_loader_version,
+                       'mod_name'                     : mod_name,
+                       'mod_author'                   : mod_author,
+                       'mod_id'                       : mod_id,
+                       'license'                      : license,
+                       'description'                  : project.description,
+                       'neoforge_version'             : effectiveNeoForgeVersion,
+                       'neoforge_loader_version_range': effectiveNeoForgeLoaderVersionRange,
+                       "forge_version"                : forge_version,
+                       "forge_loader_version_range"   : forge_loader_version_range,
+                       'credits'                      : credits,
+                       'java_version'                 : effectiveJavaVersion]
+
+    filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {
+        expand expandProps
+    }
+    inputs.properties(expandProps)
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId base.archivesName.get()
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url System.getenv('local_maven_url')
+        }
+    }
+}

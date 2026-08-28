@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "multiitemframe:frame_1x2"
+    }
+  ],
+  "result": {
+    "item": "multiitemframe:frame_2x1",
+    "count": 1
+  }
+}

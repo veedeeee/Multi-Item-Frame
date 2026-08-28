@@ -12,68 +12,153 @@
 
 ## 1. プロジェクト基盤（マルチローダー構成）
 
-- [ ] Gradleマルチモジュール構成を新規作成: `common` / `forge` / `neoforge`
-- [ ] `settings.gradle` / `build.gradle`（ルート・各モジュール）を作成し、Forge 1.20.1 / NeoForge 1.21.1向けのビルド設定を行う
-- [ ] `gradle.properties`を作成し、MOD ID・バージョン・対象MC/ローダーバージョン等を定義（`release.yml`が`version=`を参照する前提）
-- [ ] Gradle Wrapper（`gradlew` / `gradlew.bat` / `gradle/wrapper/*`）を追加
-- [ ] `.gitignore`を作成（`build/`, `.gradle/`, `run/`等）
-- [ ] MOD ID（例: `multiitemframe`）とMOD名・説明・作者等のメタデータを確定
-- [ ] Forge用`mods.toml`、NeoForge用`neoforge.mods.toml`を作成
-- [ ] アイコン画像等のMODメタデータアセットを準備
+- [x] Gradleマルチモジュール構成を新規作成: `common` / `forge` / `neoforge`
+- [x] `settings.gradle` / `build.gradle`（ルート・各モジュール）を作成し、Forge 1.20.1 / NeoForge 1.21.1向けのビルド設定を行う
+- [x] `gradle.properties`を作成し、MOD ID・バージョン・対象MC/ローダーバージョン等を定義（`release.yml`が`version=`を参照する前提）
+- [x] Gradle Wrapper（`gradlew` / `gradlew.bat` / `gradle/wrapper/*`）を追加
+- [x] `.gitignore`を作成（`build/`, `.gradle/`, `run/`等）
+- [x] MOD ID（`multiitemframe`）とMOD名・説明・作者等のメタデータを確定（group=`wtf.vd`, mod_id=`multiitemframe`, mod_author=`Vee Dee`, license=`LGPL-3.0`）
+- [x] Forge用`mods.toml`、NeoForge用`neoforge.mods.toml`を作成
+- [x] アイコン画像等のMODメタデータアセットを準備（仮のプレースホルダー画像を配置。正式なアイコンは別途デザインが必要）
+
+`.\gradlew.bat build --console=plain`でビルド成功を確認済み（`multiitemframe-forge-1.20.1-1.0.0.jar` / `multiitemframe-neoforge-1.21.1-1.0.0.jar`を生成、`build.yml`/`release.yml`が期待するファイル名と一致）。`LICENSE`（LGPL-3.0）も追加済み（ビルドタスクが参照するため前倒しで作成）。
 
 ## 2. コアロジック（`common`モジュール）
 
-- [ ] Item Frame拡張ブロック/ブロックエンティティの基本設計（バニラ`item_frame`の挙動を踏襲しつつ複数スロット対応）
-- [ ] サイズバリエーションの実装: `1x1` / `1x2`（縦2連結） / `2x1`（横2連結） / `1and2`（上1・下2） / `2and1`（上2・下1） / `2x2`
-- [ ] 各サイズごとのブロック・アイテム・ブロックエンティティ・NBT/データコンポーネントの登録
-- [ ] 背景の表示/透過切り替え機能
-- [ ] アイテム設置ロジック: インベントリからの設置、JEIからのドラッグ設置
-- [ ] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去
-- [ ] ハイライトカラー設定機能: モードボタン（無し/フレーム/背景塗りつぶし）のトグル、色トグルボタン、インベントリ/JEIからの染料ドラッグ
-- [ ] 設定コピー用の共通インターフェース（Memory Card / Configuration Cardの両方から呼べる形で設計）
-- [ ] ネットワーキング（クライアント⇔サーバー間のGUI操作・状態同期パケット）
-- [ ] グロー版（`glow_frame_*`）の実装（発光ロジック、非グロー→グロー変換）
+> **設計変更（Ch.2着手時に判明）**: `common`は2ローダー分としてソースが2回コンパイルされるが、Forge 1.20.1とNeoForge 1.21.1はMC 1.20.5の Data Components導入により`ItemFrame`/`HangingEntity`系のバニラAPIが大きく乖離しており（`HangingEntity`の親クラス、`defineSynchedData`のシグネチャ、`ItemStack`のNBT保存/復元、`getAddEntityPacket`等）、フレーム本体のEntity/Item/GUIクラスは`common`に置けない。よって`common`には`FrameSize`/`HighlightMode`等のMC非依存な純粋データのみを置き、Entity/Item/Menu/Screen/レンダラー/登録処理はforge・neoforge双方に個別実装する方針とした（ユーザー承認済み）。
+
+- [x] Item Frame拡張エンティティの基本設計（`HangingEntity`を直接継承、`common`に`FrameSize`/`HighlightMode` enumを配置）
+- [x] サイズバリエーションの実装: `1x1` / `1x2` / `2x1` / `1and2` / `2and1` / `2x2`（`FrameSize` enum、スロット数・グリッド位置を保持）
+- [x] 各サイズごとのアイテム・エンティティ登録、およびNBT保存/復元（forge/neoforgeそれぞれに`MultiItemFrameEntity`実装。エンティティ種別は`multi_item_frame`/`glow_multi_item_frame`の2つのみで、サイズは同期エンティティデータとして保持）
+- [x] 専用クリエイティブタブ（`ModCreativeTabs`、forge/neoforge双方）にアイテム12種を列挙。未登録だとクリエイティブインベントリにもJEIにも一切表示されない不具合があり、テスト環境での検証で発覚したため追加。
+- [x] 背景の表示/透過切り替え機能（`isBackgroundVisible`/`toggleBackground`。実際のテクスチャ切り替えはCh.4）
+- [x] アイテム設置ロジック: インベントリからの設置（GUIの`quickMoveStack`、中クリック消去含む）
+- [x] JEIからのドラッグ設置（実アイテムスロットへのドラッグはJEI標準機能でそのまま動作。Ch.5のJEI連携で染料ドラッグ用のゴーストターゲットのみ追加実装）
+- [x] GUI（メニュー+スクリーン）: 右クリックで開く、設定スロットへアイテムを入れる、中クリックで消去（`MultiItemFrameMenu`/`MultiItemFrameScreen`。背景は暫定的にバニラの`generic_54`テクスチャを流用、専用アセットはCh.4）
+- [x] ハイライトカラー設定機能: モードボタンのトグル、色トグルボタン（バニラの`clickMenuButton`機構を利用、追加のネットワーキング実装は不要だった）。`gui_sample.html`（モックアップ、`.gitignore`対象外の作業用ファイル）でのUI方針確認を受け、`HighlightMode`を`NONE/FRAME/FILL`の3状態から`FRAME/FILL`の2状態トグルに変更し、「ハイライトなし」は色を未設定（transparent）にすることで表現するよう仕様変更。GUIレイアウトも、各スロットのアイテム欄＋モードボタン＋色ボタンを横一列の「行」としてまとめ、`FrameSize`が1列/1行しかない場合はその行を2列/2行分の領域内で中央寄せする方式（`FrameSize#columnSpan()`/`rowSpan()`）に刷新し、全サイズで同じ大きさ・形のパネルになるよう統一（既存の重なり・はみ出し問題を解消）。モード/色ボタンはテキストボタンから、`common/.../assets/multiitemframe/gui/`に配置済みの16x16アイコン（ハイライトモード2種、色17種＝透明+ダイ16色、ボタン背景2種）を使う独自`IconButton`ウィジェット（forge/neoforge双方）に置き換え。
+- [x] インベントリ/JEIからの染料ドラッグでの色設定（色トグルボタンに加え、JEIの`IGhostIngredientHandler`で染料をボタンへ直接ドラッグ&ドロップ可能。インベントリからのドラッグは通常のドラッグ&ドロップに対応する専用UIが無いため対象外、ボタンクリックでの巡回設定を継続採用）
+- [x] 設定コピー用の共通インターフェース（`copySettings()`/`pasteSettings(CompoundTag)`をforge/neoforge双方の`MultiItemFrameEntity`に同一シグネチャで実装。実際のMemory Card/Configuration Card連携はCh.5）
+- [x] ネットワーキング（GUIオープンは`ServerPlayer#openMenu`(NeoForge)/`NetworkHooks.openScreen`(Forge)のextra-data機構でエンティティIDを同期。ボタン操作はバニラの`clickMenuButton`/`handleInventoryButtonClick`で完結し、独自パケットは不要だった）
+- [x] グロー版（`glow_frame_*`）の実装（`GlowMultiItemFrameEntity`、専用サウンドのみ上書き。発光の視覚表現はCh.4のレンダラー/テクスチャで対応）
+- [x] **アイテム欄のゴースト化（実機テストでのバグ報告を受けて実施）**: フレームのアイテムスロットは実アイテムを保持せず、「表示するアイテムの種類」のみを記憶するゴーストスロットに変更（`MultiItemFrameMenu#clicked`/`quickMoveStack`を全面書き換え。左クリックでカーソルのアイテムを1個分だけ複製表示、カーソル側は変化なし。中クリックで表示解除、shift+クリックは無効化）。ドロップ時に実アイテムが消費される・個数情報が失われるという不具合、およびフレーム破壊時に見せかけのアイテムが実体としてドロップされる不具合を解消（`MultiItemFrameEntity#dropItem`からも表示アイテムのドロップ処理を削除）。JEI/インベントリからの直接設定は新設の`DIRECT_ITEM_BASE`ボタンID範囲（`MultiItemFrameMenu#setDisplayItemDirect`、`BuiltInRegistries.ITEM`の登録IDを`clickMenuButton`経由で送信）で対応。
+
+`.\gradlew.bat build --console=plain`でforge/neoforge双方のコンパイル・ビルド成功を確認済み。エンティティのレンダラーは未描画のプレースホルダー（`MultiItemFrameRenderer`、テクスチャ・モデルはCh.4）。
 
 ## 3. クラフトレシピ
 
-- [ ] `Multi Item Frame 1x1`: Item Frame + Redstone Dust（シェイプレス）
-- [ ] `1x2`（縦2連結）/ `2x1`（横2連結）レシピ、および両者間の単一クラフトによる相互変換（1,2キー分クラフトグリッドに置くだけで変換）
-- [ ] `1,2`（上1下2）/ `2,1`（上2下1）レシピ（複数パターン: 1x1×3個の並び、または1x1+1x2の組み合わせ）
-- [ ] `2x2`レシピ（複数パターン: 1x1×4、1x2×2、2x1×2）
-- [ ] グロー版レシピ: `Glowing 1x1` = 非グロー1x1 + Glowstone Dust（シェイプレス）、他サイズは対応する非グロー版のグロー変換
-- [ ] レシピの実装後、README記載のクラフト図と実際のレシピJSONの整合性を確認
+- [x] `Multi Item Frame 1x1`: Item Frame + Redstone Dust（シェイプレス）
+- [x] `1x2`（縦2連結）/ `2x1`（横2連結）レシピ、および両者間の単一クラフトによる相互変換（1,2キー分クラフトグリッドに置くだけで変換）
+- [x] `1,2`（上1下2）/ `2,1`（上2下1）レシピ（複数パターン: 1x1×3個の並び、または1x1+1x2の組み合わせ）
+- [x] `2x2`レシピ（複数パターン: 1x1×4、1x2×2、2x1×2）
+- [x] グロー版レシピ: `Glowing 1x1` = 非グロー1x1 + Glowstone Dust（シェイプレス）、他サイズは対応する非グロー版のグロー変換
+- [x] レシピの実装後、README記載のクラフト図と実際のレシピJSONの整合性を確認
+
+`tools/generate_recipes.py`でforge/neoforge双方のレシピJSON（各24個）を生成。**Forge 1.20.1とNeoForge 1.21.1でレシピJSONスキーマ自体もMC 1.21で変更されている**（`result`の`item`→`id`キー変更、ingredientの`{"item":...}`→プレーン文字列化）ため、Ch.2のJavaコードと同様に`common`の共有リソースではなくローダー別に生成した（スクリプト側で`legacy`フラグにより両スキーマを出し分け）。`.\gradlew.bat build`でリソース処理・ビルド成功を確認済み。実際にゲーム内でレシピが認識されるかの検証はCh.7のテスト環境で実施。
 
 ## 4. アセット
 
-- [ ] ブロックステート・ブロックモデル（サイズ×通常/グロー分）
-- [ ] アイテムモデル（インベントリ表示用）
-- [ ] テクスチャ: フレーム本体、背景表示/透過の差分、ハイライト状態（無し/フレーム/塗りつぶし）の差分、グロー発光テクスチャ
-- [ ] 言語ファイル（`en_us.json`、必要なら`ja_jp.json`）
-- [ ] レシピJSON・（必要なら）ルートテーブル・タグ定義
+- [x] ~~ブロックステート・ブロックモデル~~ — Ch.2でエンティティとして実装したため対象外（ブロックではない）
+- [x] アイテムモデル（インベントリ表示用、12種すべて `item/generated` 参照のプレースホルダーを配置。`common/src/main/resources/assets/multiitemframe/models/item/`）
+- [x] テクスチャ: プレースホルダーを配置済み（`common/src/main/resources/assets/multiitemframe/textures/`）。フレーム本体アイテムアイコン12種（`item/`）、インワールド用フレーム本体・グロー発光（`entity/frame.png`・`frame_glow.png`）、背景表示用（`entity/background.png`）、ハイライト用の枠・塗りつぶし各1枚（`entity/highlight_frame.png`・`highlight_fill.png`、いずれも白色で描画時にスロットごとの`DyeColor`へ着色する想定、16色分を個別に用意しない）。
+- [x] インワールド描画ロジック（`MultiItemFrameRenderer`、forge/neoforge双方）: 手動`VertexConsumer`でフラットな板ポリゴンを積層描画。`isBackgroundVisible()`ならスロットごとに`background.png`、`FrameSize`の外接矩形全体に`frame.png`/`frame_glow.png`（グロー版は`GlowMultiItemFrameEntity`判定で切替）、スロットごとに`HighlightMode`（`FRAME`/`FILL`）に応じた`highlight_frame.png`/`highlight_fill.png`を頂点カラーで`DyeColor`着色、最後に`ItemRenderer.renderStatic`でスロットのアイテムを描画。設置面の直交ベクトル（`getYRot()`から算出）に沿って板を向け、Z方向にわずかなオフセット（`WALL_OFFSET`/`LAYER_STEP`）でZファイティングを回避。NeoForge側は1.21.1で刷新された`VertexConsumer`API（`addVertex`/`setColor`/`setUv`/`setNormal`、`.endVertex()`廃止）に合わせて実装（Forge側は旧来の`.vertex(...).color(...).endVertex()`チェーン）。常時発光（光源化）は別課題として未着手（Ch.4当初の議論参照）。
+- [x] ~~設置面オフセットのバグ修正（`WALL_OFFSET`による回転前ワールド空間オフセット）~~ — 下記「二重オフセットバグの根本修正」で完全に置き換え済み（この対症的な修正自体が、後述する二重オフセットの原因だったことが判明したため）。
+- [x] **フレーム不可視・位置ズレの根本原因調査と修正（実機テストで正面から完全に不可視、背面から傾いた状態で見える不具合の再報告を受けて実施）**: バニラの`HangingEntity`/`EntityRenderDispatcher`/`ItemFrameRenderer`をデコンパイルして比較した結果、`HangingEntity#recalculateBoundingBox()`（継承元のバニラ実装、未override）がエンティティ自身のワールド座標を既に設置面に密着する位置へ補正済みであり、`EntityRenderDispatcher.render()`はその座標（+`getRenderOffset()`、本レンダラーは未overrideのためゼロ）でPoseStackを平行移動してから`render()`を呼び出す——つまり本来`render()`内で追加の平行移動は一切不要だった。前回セッションの「設置面オフセットのバグ修正」がバニラの`ItemFrameRenderer`の平行移動処理だけを模倣し、それとセットの`getRenderOffset()`オーバーライド＆キャンセル処理を伴わなかったため、実質的に二重にオフセットがかかり、フレームが壁から`WALL_OFFSET`(約0.47ブロック)分浮いた位置に描画されていた（不可視・傾いて見える等の症状の直接原因）。**修正**: `render()`内の回転前の平行移動処理を完全に削除（forge/neoforge双方）。エンティティ自身の位置（ディスパッチャが渡す座標）をそのまま使い、Y軸回転のみ適用する方式に変更。
+- [x] **フレーム本体の厚み表現（1px、設置ブロックへの密着）を追加**: `THICKNESS = 0.0625F`(1px)の箱形状として、正面（既存`frame.png`/`frame_glow.png`）・背面（同テクスチャを頂点順序反転で描画、`RenderType.entityCutout()`が背面カリングを行うため裏面から見た際の不可視を回避）・上下左右4枚の側面帯（新規`frame_side.png`/`frame_glow_side.png`、暫定プレースホルダー）を描画するよう`MultiItemFrameRenderer`を拡張（forge/neoforge双方）。背景・ハイライト・アイテムの各レイヤーは正面の厚み分（`HALF_THICKNESS`）を基準に積層するよう深度計算を変更。側面用テクスチャは単色プレースホルダーのため、実際のアート差し替えを推奨（板材・金属エッジ風のタイル可能なテクスチャを想定）。
+- [x] **1and2/2and1の単独スロットの中央寄せ**: `FrameSize.slotPositions`の型を`int[][]`から`double[][]`に変更し、`ONE_AND_TWO`/`TWO_AND_ONE`の単独スロット座標を`0.5`（半セル分）に変更することで、ワールド描画・GUIレイアウトの両方でコードを分岐させずに中央寄せを実現（`MultiItemFrameMenu`のGUIピクセル計算、`MultiItemFrameRenderer`のワールド座標計算の双方を`double[]`対応に更新）。新規アセットは不要（純粋なレイアウト計算のみ）。
+- [x] **複数スロットフレームのアイテム描画スケール変更**: 1x1フレームは既存通り`0.5`倍（バニラのアイテムフレームと同等の見た目を維持）、2スロット以上のフレームは`0.25`倍（ユーザー要望の「50%に縮小」＝既存0.5倍からさらに半分）に変更。
+- [x] **設置footprint（当たり判定）が1x1ブロックを超えてしまうバグの修正**: `getWidth()`/`getHeight()`（Forge、`HangingEntity`のピクセル単位オーバーライド）・`calculateBoundingBox()`（NeoForge、1.21.1のAABB直接算出オーバーライド）が`FrameSize.columns()`/`rows()`をそのまま当たり判定サイズに使っていたため、2x2や1x2のフレームは実際に2x2/1x2ブロック分の設置クリアランス・当たり判定を要求してしまい（バニラのPaintingと同じ仕組みを誤って流用していた）、かつ`HangingEntity`の壁密着センタリング計算（幅/高さに依存）が乱れて非1x1サイズの描画位置がズレる原因にもなっていた。複数スロットのグリッド分割はあくまで1ブロック面の中の「見た目上の」区切りであり実際の設置は常に1x1ブロックであるべきと判断し、当たり判定サイズを常に固定1（バニラのアイテムフレームと同じ）に変更（forge/neoforge双方）。
+- [x] **正面からアイテム・ハイライトが見えず背面からは見える不具合の修正**: `RenderType.entityCutout()`のカリング挙動・バニラ`ItemFrameRenderer`のオフセット規約をデコンパイルで裏取りした上で原因を特定 — 積層レイヤー間のZオフセット（`LAYER_STEP=0.002`）が小さすぎ、通常の視認距離ではデプスバッファの精度不足によりZファイティングが発生し、視点や描画順（グロー版/非グロー版でテクスチャが異なるだけで座標は同一のはずが、結果が食い違っていたのはこのため）によって前面パネルとアイテム/ハイライトのどちらが手前に描画されるか不安定になっていたことが原因。`LAYER_STEP`を`0.03`に拡大し、各レイヤー間に十分なZマージンを確保することで解消（forge/neoforge双方）。
+- [x] ~~上記のLAYER_STEP拡大による修正~~ — 実機再テストで改善せず、根本原因は別にあった。詳細は下記2件を参照。
+- [x] **フレームの見た目サイズが常に1ブロックに収まらず、`FrameSize`の列数/行数に比例して複数ブロックに跨って描画されていたバグの修正**: 当たり判定（Ch.直前で修正済み）とは独立に、レンダラー自体が`halfWidth = size.columns()/2`・`halfHeight = size.rows()/2`という「1スロット=1ブロック」の座標系で描画しており、2x2フレームは見た目上も2x2ブロック分の面積を占めていた（バニラのPaintingのような複数ブロック表示を意図せず再現してしまっていた）。ユーザー要件は「どのサイズも常に1x1ブロックの面の中に収まり、スロット分割は1ブロック内部でのグリッド区切りに過ぎない」ことだったため、外枠のボックス形状を常に固定`-0.5..0.5`（1x1ブロック）とし、各スロットは`1/columns × 1/rows`のセルサイズでその内部を分割するよう再設計。アイテムスケールも`0.5 × min(セル幅, セル高さ)`という単一の式に統一（1x1なら`0.5`でバニラ相当、2x2なら`0.25`など、セルが小さくなるほど自動的に縮小するため、以前ハードコードしていた複数スロット用`0.25`固定値は撤廃）。
+- [x] **正面が見えずアイテム・ハイライトが背面からしか見えない不具合の再修正**: LAYER_STEP拡大では改善しなかったため、Zファイティングではなく頂点巻き順（ワインディング）とバックフェイスカリングの不整合が原因と判断。自前で前面・背面の両方を明示的に描画しているためGPUのバックフェイスカリングに頼る必要がなく、巻き順の解析にリスクが伴う（デコンパイルでの検証だけでは実機の挙動と食い違う結果となった）ため、フレーム本体・背景・ハイライトの描画に使う`RenderType`を`entityCutout()`（カリングあり）から`entityCutoutNoCull()`（カリングなし）に変更し、巻き順に依存せず両面とも確実に描画されるようにした（forge/neoforge双方）。
+- [x] ~~上記のNoCull化による修正~~ — 実機再テストでも改善せず（アイテム・ハイライトは相変わらず「裏」＝ガラス越しに見える側にのみ表示され、実際にGUIを開く「表」側では見えないまま）。カリングの有無ではなく、背景・ハイライト・アイテムの各レイヤーを積層するZ方向（`depth`変数の符号）そのものが、本来アクセス可能な側と逆になっていたことが原因と判明。バニラの`ItemFrameRenderer`をデコンパイルして同じ回転式（`Axis.YP.rotationDegrees(180 - yaw)`）・同じ正方向（`+Z`）のアイテム配置を確認した上で理論的に検証しても矛盾は見当たらなかったため（`HangingEntity.setDirection`のyaw計算・`Direction.get2DDataValue()`の値まで含めて追った）、これ以上のワインディング/軸解析には踏み込まず、実機での見え方（「裏」に出る＝ガラス越しに見た際に閉塞されずに見えている）を直接の判断材料として、`depth`の符号を反転（`+Z`側ではなく`-Z`側へ積層）する修正に切り替えた。フレーム本体の前面・背面テクスチャ自体は対称（同じ`frame.png`を両面に描画）のため、内容物側のレイヤーだけを反転させても見た目に矛盾は生じない（forge/neoforge双方、`MultiItemFrameRenderer#render`の`depth`初期値・増減方向・アイテム用オフセットの符号をすべて反転）。ビルド・デプロイ済み、実機再検証待ち。
+- [x] **表裏の表示面はOKと確認**。追加で3件のフィードバックに対応:
+  - **非正方形セル（1x2/2x1等）でのハイライト枠の短辺が2pxになる不具合**: `highlight_frame.png`（16x16、外周2texelが不透明な単色ボーダー、内側は透明）を1枚のクアッドとしてセル全体に引き伸ばして描画していたため、セルの縦横比が非正方形だとボーダーの太さも軸ごとに異方的にスケールし（長辺方向は1px、短辺方向は2pxになる）不均一に見えていた。`renderHighlightFrameBorder`を新設し、上下左右4本の帯を個別に、常に固定1px幅（`HIGHLIGHT_BORDER_PX = 1/16`）で描画するように変更（帯のUVはテクスチャの単色コーナー領域`[0,0.125]`を指定してサンプリング）。セルのアスペクト比に依存せず全辺で1pxの枠になる（forge/neoforge双方）。
+  - **GUIレイアウト崩れ（GUI Scaleごとに見た目が違う）**: `MultiItemFrameScreen#renderBg`の背景`blit`呼び出しが、333x256の画像全体（実際に絵が入っているのは左上176x166分だけで、右と下は余白の透明ピクセル）をそのまま176x166の描画先へ縮小転写していたため、パネルの絵柄が本来より小さく押しつぶされた状態で描画されており、GUI Scale設定によって縮小・拡大の丸め方が変わることで見た目の破綻具合も変化していた。`blit`呼び出しを、左上176x166の実絵柄部分だけを等倍でサンプリングする9引数オーバーロードに変更（`blit(BACKGROUND, leftPos, topPos, 0, 0, imageWidth, imageHeight, 333, 256)`）し、常に1:1のドット等倍で描画されるようにした（forge/neoforge双方）。
+  - **側面から見たときにレイヤーが浮いて見える不具合**: 上記のZ反転修正の際、以前z-ファイティング対策で`LAYER_STEP`を`0.03`（フレーム前面と衝突していた頃の値）まで大きくしていたが、内容物レイヤーが背面側へ積層される新しい構成ではこの値がそのまま「背面から浮いた1枚板」に見える大きさ（背景・ハイライト・アイテムの3層分でHALF_THICKNESSを含め最大約0.12ブロック=約2px相当）になってしまっていた。`LAYER_STEP`を`0.004`まで縮小し、フレーム本体の面にほぼ密着する形に変更（forge/neoforge双方）。z-ファイティングが再発する場合は値を再調整する。
+- [x] **GUIのスロット順序と実際の設置面での描画位置の不一致を修正**: `depth`符号反転（表裏の可視面切替）の副作用で、アクセス可能な側（GUIを開ける側）に立つ視点はZ軸が反転しているぶん、左右（X軸）も鏡映されて見える状態になっていた（上下/Y軸はZ軸の反転で影響を受けない）。このため`FrameSize#slotPosition`のグリッド上の位置（GUIメニューでの並び順と一致、左上=`[0]`・右下=`[n-1]`の読み順）と、実際に設置面から見えるスロットの左右位置が一致しておらず、GUIで一番左に見えるスロットの設定が、設置面では右側のスロットに反映される、という不整合が起きていた。`MultiItemFrameRenderer#render`内の背景/ハイライト/アイテム各レイヤーのX座標計算を`gridPos[0]`に対して左右反転させ（Y座標はそのまま）、アクセス可能な側から見て`[0]`が常に左上、`[n-1]`が常に右下になるよう修正（forge/neoforge双方）。
+- [x] **Memory Card/Configuration Cardでの設定コピー＆ペーストが、コピー元・貼り付け先のスロット数が異なる場合に貼り付け先の対応しないスロットまで初期値で上書きしてしまう不具合を修正**: `copySettings()`がコピー元フレームの実際の`slotCount()`分だけを記録するように変更（従来は常に`FrameSize.MAX_SLOTS`(4)件を記録しており、コピー元で未使用の余剰スロット分に入っていた初期値までペースト先に上書きしてしまっていた）。`pasteSettings()`もコピー元記録数とペースト先の`slotCount()`の小さい方までしか書き込まないように変更し、ペースト先の方がスロット数が多い場合は残りのスロットの設定を変更せず維持するようにした（forge/neoforge双方）。これにより、例えば1x1でコピーした設定を1and2にペーストすると上段（`[0]`）だけに反映され下段（`[1]`,`[2]`）は変更されず、2x2でコピーした設定を1x1にペーストすると`[0]`の設定だけが反映されるようになる（スロット順は`FrameSize#slotPosition`の読み順=左上が`[0]`、右下が`[n-1]`で共通、`gui_sample.html`のCSS Gridレイアウトの並び順と同一）。
+- [x] **GUI刷新（実機テストでのGUI重なり・操作不能の報告を受けて実施）**: `base.png`（256x256の枠+背景一体型テクスチャ）を`renderBg`でパネルサイズにストレッチ描画するよう変更（旧`generic_54.png`から差し替え）。プレイヤーインベントリとの重なりを解消するレイアウト調整（`GRID_ORIGIN_Y`を18→22に変更）。「Background」トグルボタンは用途不明のためGUIから削除（`isBackgroundVisible`データ自体は温存、GUI操作口のみ撤去）。`IconButton`にクリック中のみ`_pressing.png`を表示する状態管理、中クリックコールバック、状態依存の動的ツールチップ（`Tooltip.create`を毎フレーム更新）を追加。アイテムスロットのツールチップ「Drag and Drop to choose item, Middle-click to erase」、ハイライトモードボタンのツールチップ「Highlight type: Frame」/「Highlight type: Filled」（ユーザー指定の原文ママ、誤字含む）を追加。アイテムスロット・色ボタンとも中クリックで初期化（未設定/透明）に対応するため、`Screen#mouseClicked`をオーバーライドしてバニラのクリエイティブ限定ゲートを回避し、中クリックを`handleInventoryMouseClick`経由で常に転送するよう変更。
+- [x] **新GUIアセット（`main_gui_background.png`ほか）に合わせたレイアウト再実装**: ユーザーが新規テクスチャ一式（`main_gui_background.png`＝176x166相当のパネル本体、内部の設定エリアは透明な「ビューポート」でバニラ準拠のプレイヤーインベントリ描画がそのまま透けて見える構造、`main_gui_{1x1,1x2,2x1,2x2,1and2,2and1}_placeholder.png`＝各`FrameSize`ごとのスロット配置を示す開発用レイアウトガイド（実テクスチャではなく、四隅のドット+区切り線のみのピクセル座標参照用画像）、`button_stack.png`＝1スロット分のウィジェット群（アイテムスロット+ハイライト種別ボタン+色ボタン、各18x18・ギャップ3pxで横並び、合計60x18）のレイアウト見本、`item_slot_background.png`＝アイテムアイコン背景（16x16）、`button_background.png`/`button_background_pressing.png`＝ボタン背景を16x16→18x18に拡大）を追加。全プレースホルダー画像をPythonでピクセル解析し、各`FrameSize`のスロット配置座標を逆算（`GRID_ORIGIN_X/Y=7`, `CELL_WIDTH=80`, `CELL_HEIGHT=36`, `GROUP_WIDTH=60`, `GROUP_HEIGHT=18`）。`MultiItemFrameMenu`のグリッド計算式を、ウィジェット群自体の大きさ（`GROUP_WIDTH/HEIGHT`）とグリッド間隔（`CELL_WIDTH/HEIGHT`）を別々の定数として扱うよう修正（旧実装は両者を同一の定数として混同しており、新しい非正方形グリッドに対応できなかった）。`MultiItemFrameScreen`の背景テクスチャを`main_gui_background.png`に差し替え（ソース画像サイズ333x256）、ボタンサイズを16→18pxに拡大、アイテムスロット背景を新設の`item_slot_background.png`で明示的に描画するよう変更（新パネルの設定エリアが透明なため）。`IconButton`もボタンサイズ18x18＋中央に16x16アイコンを描画する構成に更新（forge/neoforge双方）。ビルド確認済み・実機未検証（ユーザーへの意図確認は完了、実装後の見た目レビュー待ち）。
+- [x] **1and2/2and1の単独スロット（「1」側）をフル幅描画に変更**: 従来は`FrameSize.slotPosition`のフラクショナル座標（`0.5`）をそのまま用いて「2列分のうちの半セル幅の領域を中央寄せ」していたため、実際には単独スロットも他のスロットと同じ`1/columns`幅にしか描画されていなかった。`MultiItemFrameRenderer`に`slotBounds()`ヘルパーを新設し、スロットのグリッド座標が非整数（フラクショナル、現状は`0.5`のみ）の軸を検出したら、その軸はベースセル幅ではなくフレーム全体の幅/高さ（`halfWidth`/`halfHeight`の2倍）を使うように変更（背景・ハイライト・アイテムの全レイヤー、およびアイテムスケール計算に反映。左右反転ロジックも維持）。これにより`ONE_AND_TWO`/`TWO_AND_ONE`の単独スロットは列方向いっぱいに描画されるようになる（forge/neoforge双方）。
+- [x] **バニラItem Frame比率へのfootprint縮小**: バニラの実モデル（`template_item_frame.json`をデコンパイルで確認）は木枠+背面パネルの構成で、実際の描画footprintは16x16ブロック面のうち中央12x12（外周2pxが余白）であることが判明（ユーザーの当初の推測=14x14/12x12とは異なる、正しくは12x12footprint・10x10背面パネル）。ユーザー確認の結果、このMODも同じ12/16比率へ視覚的footprintを縮小する方針に決定。`MultiItemFrameRenderer`に`FOOTPRINT_HALF = 0.5 * (12/16)`定数を新設し、フレーム本体の箱形状（`renderBox`）・背景/ハイライト/アイテムの各コンテンツレイヤーで使う`halfWidth`/`halfHeight`をこの値に変更（従来の`0.5`＝ブロック全面から縮小）。設置・当たり判定（`getWidth()`/`getHeight()`/`calculateBoundingBox()`）は既存通り常に1x1ブロック分を維持しており、見た目のみが小さくなる（バニラのアイテムフレームと同じく、設置面の周囲にわずかな余白が見えるようになる）。既存テクスチャ（`frame.png`/`frame_glow.png`等）はそのまま流用し、新規アセットの追加は行っていない（forge/neoforge双方）。木枠+背面パネルの2テクスチャ構成への分割（バニラの`birch_planks`枠＋`item_frame.png`クロップのような専用アセット化）は別途アセット制作が必要なため未着手。
+- [x] **グロー版に実際の発光（光源レベル強制）を実装、見た目の差異は撤廃**: 調査の結果、従来のグロー版はテクスチャ（`frame_glow.png`/`frame_glow_side.png`）と設置/破壊音のみが通常版と異なり、実際の発光（光レベルの底上げ）は一切実装されていなかったことが判明（バニラの`GlowItemFrame`は`ItemFrameRenderer#getBlockLightLevel()`のオーバーライドで最低ブロック光レベル5を強制するが、このMODには同等の処理が無かった）。ユーザー要望により方針を「テクスチャ・サウンドは通常版と統一、実際の発光のみ実装」に変更。`MultiItemFrameRenderer`（forge/neoforge双方）で`getBlockLightLevel(entity, pos)`をオーバーライドし、`GlowMultiItemFrameEntity`インスタンスに対して最低ブロック光レベル`9`（バニラのグローアイテムフレームの5より明るい値、ユーザー指定）を強制するよう実装。`render()`/`getTextureLocation()`の両方でグロー判定によるテクスチャ分岐を削除し、常に通常版の`frame.png`/`frame_side.png`を使用するよう変更。`GlowMultiItemFrameEntity`（forge/neoforge双方）の`getPlaceSound()`/`getBreakSound()`オーバーライドも削除し、通常版と同一のデフォルトサウンドに統一。旧グロー専用テクスチャ（`frame_glow.png`/`frame_glow_side.png`、インベントリアイコン`glow_frame_*.png`）はアセットとして残存するが、インワールドレンダラーからは参照されなくなった（アイテムアイコンとしては別途モデルJSON経由で引き続き使用）。
+- [x] **グロー版の発光を「自己発光の見た目のみ」から「実際に周囲を照らす光源」に変更**: 上記の`getBlockLightLevel()`オーバーライドは、あくまでレンダリング時にフレーム自身へ適用される明るさの底上げに過ぎず（バニラのGlowItemFrameも同様の仕組みで、実際には周囲のブロック・部屋を照らさない）、ユーザーからの実機フィードバックで「光っていない（部屋が明るくならない）」との指摘を受けた。ワールドの光源計算（ライトエンジン）はブロック由来の光しか扱えず、Entity自体が周囲を照らすことはバニラの仕組み上不可能なため、`GlowMultiItemFrameEntity`（forge/neoforge双方）に`onAddedToWorld()`（NeoForge側は`onAddedToLevel()`、1.20.1/1.21.1のメソッド名差異はデコンパイルで確認済み）と`remove(RemovalReason)`のオーバーライドを追加し、フレームが設置されている座標（バニラのアイテムフレームと同じ、壁面に密着する空気セル）に不可視の`minecraft:light`ブロック（レベル9）をサーバー側でこっそり設置/撤去するようにした。設置対象セルが空気の場合のみ設置（水・他エンティティ等がある場合は無視、光らないだけで実害なし）。撤去は`RemovalReason#shouldDestroy()`が真の場合（実際に破壊された場合）のみ行い、チャンクアンロードやディメンション移動では設置したライトブロックを維持する（再読込時に`onAddedToWorld`/`onAddedToLevel`が再度呼ばれ、既にライトブロックがあれば同じ状態を再設定するだけで実害なし）。
+- [x] **footprint縮小（16x16→12x12相当）に伴う`entity/`テクスチャの再作成完了**: ユーザーによりアセットが差し替えられ、`background.png`/`highlight_frame.png`/`highlight_fill.png`/`frame_side.png`が12x12、`frame.png`が24x24（12x12の2倍解像度を維持）へリサイズされたことを確認。`highlight_frame.png`は外周1pxの不透明ボーダー＋中央透明という構造を12x12でも正しく維持している（ピクセル単位でアルファチャンネルを検証済み）。未参照だった`entity/frame_glow.png`・`entity/frame_glow_side.png`は削除された。ビルド・forge/neoforge両インスタンスへのデプロイで正常動作を確認。
+- [x] **`highlight_frame.png`の12x12化に伴うUVサンプリング境界のバグを修正**: 上記のテクスチャ再作成後、フレームハイライト（`HighlightMode.FRAME`）の枠が右下方向へ滲む/ガタつく不具合が発生。原因は`MultiItemFrameRenderer`（forge/neoforge双方）の`HIGHLIGHT_FRAME_SOLID_UV`定数が旧仕様（16x16テクスチャ・外周2px境界 → UV 2/16=0.125）のまま残っていたこと。実際のテクスチャは12x12・外周1px境界に変更済みのため、正しいUV境界は1/12（≒0.0833）。0.125のままだと1.5テクセル分をサンプルしてしまい、本来不透明であるべき境界の外側（透明な中央領域）まで一部読み込んでしまい、境界が欠けて見える/ガタつく原因になっていた。両ローダーの`MultiItemFrameRenderer.java`で`HIGHLIGHT_FRAME_SOLID_UV = 1.0F / 12.0F`に修正、ビルド・デプロイで解消を確認。
+- [x] **実機フィードバックに基づく4件の不具合修正**（forge/neoforge双方）:
+  - **クリック判定（当たり判定）が16x16のままだったバグ**: footprint縮小（上記）で見た目は12x12に縮んだが、Forgeの`getWidth()`/`getHeight()`（`HangingEntity`のピクセル単位オーバーライド）とNeoForgeの`calculateBoundingBox()`はどちらも旧値（16 / 1.0）のままだったため、当たり判定は依然1ブロック全面を占有しており、設置先の裏のブロックをクリックできなかった（バニラのItem Frameは`getWidth()`/`getHeight()`が12を返すことをデコンパイルで確認、見た目と当たり判定の縮小率が一致している）。Forgeは`getWidth()`/`getHeight()`を12に、NeoForgeは`calculateBoundingBox()`の非奥行き軸サイズを`footprint = 0.75F`（12/16）に修正し、バニラと同じ縮小率に揃えた。
+  - **Jadeのツールチップ名がサイズ区別のない汎用名（"Multi Item Frame"）だったバグ**: サイズ違い（1x1/2x2等）はすべて同一`EntityType`（`multi_item_frame`/`glow_multi_item_frame`）を共有し、サイズは同期エンティティデータとしてのみ保持しているため、`getType().getDescription()`ベースの表示名取得ではサイズを区別できなかった。`Entity#getDisplayName()`（バニラのF3デバッグ表示・死亡メッセージ・JadeのようなWAILA系MODの汎用エンティティ名取得と共通のシグネチャで、`MenuProvider#getDisplayName()`＝GUIタイトルとも兼用）をオーバーライドし、`getFrameItemStack().getHoverName()`（設置アイテムの表示名、サイズごとに`en_us.json`で個別翻訳済み）を返すように変更。これによりJadeのツールチップとGUIタイトルの両方が同時に修正される。
+  - **付随して発覚した潜在バグ（グロー版がドロップ時に非グローアイテムを返す）**: `getFrameItemStack()`（アイテム破壊時のドロップ内容、および今回の表示名取得の両方で使用）は常に非グロー版のアイテムIDを解決しており、`GlowMultiItemFrameEntity`側でのオーバーライドが存在しなかった。表示名修正と密接に関連するため合わせて修正: `this instanceof GlowMultiItemFrameEntity`を判定し`MultiItemFrame.glowFrameItemId(getFrameSize())`/`frameItemId(getFrameSize())`を使い分けるよう変更。
+  - **GUI背景の一部が透過していたバグ**: `main_gui_background.png`（333x256アトラスの176x166領域）はクラスdocコメント通り「設定ビューポート」領域が意図的に透過になっているが、その裏に不透明な背景を敷く処理が存在せず、ゲーム世界がそのまま透けて見えていた。以前ユーザーが用意していた未参照の`gui/base.png`（256x256、1px黒縁＋2px白ハイライト（上・左）＋灰色（190,190,190）のフラット塗り＋2px濃灰シャドウ（下・右）というベベルパネル）がこの用途向けと判断したが、1.20.1の`GuiGraphics.blit(ResourceLocation, ...)`には送り先サイズとソース領域サイズを独立指定できる「引き伸ばしblit」の公開APIが存在しない（内部の`innerBlit`はpackage-privateでMOD側から呼べない）ため、テクスチャを九分割（nine-slice）blitする案をいったん実装したが、`base.png`の中身をピクセル単位でサンプリングした結果これは単なるフラットカラーのベベルであると判明。GUI Scale非依存かつよりシンプルな`guiGraphics.fill()`4回の塗りつぶし（黒縁→白ハイライト→濃灰シャドウ→中央グレー、をそれぞれインセットして重ね塗り）で同じ見た目を再現する方式に変更し、`renderBg()`内で`main_gui_background.png`より先に描画するようにした。
+  - **不要な"Multi Item Frame"タイトル・"Inventory"ラベル表示の削除**: `AbstractContainerScreen#renderLabels()`を空実装でオーバーライドし、両ラベルの描画を抑制。
+- [x] **実機フィードバックに基づく追加3件の修正**（forge/neoforge双方）:
+  - **インワールド描画レイヤー（背景/ハイライト/アイテム）がフレーム本体の箱（12x16footprint）の外にはみ出すバグ**: `MultiItemFrameRenderer#render()`の`baseCellWidth`/`baseCellHeight`（各スロットのセルサイズ計算に使う基準値）が`1.0F / columns()`（＝フレームがまだ縮小前のフル1ブロック幅だった頃の計算式）のまま残っており、footprint縮小後も「セルはフル1.0ブロック幅の分割」という前提で計算していたため、1x1では単一セルの内容レイヤーがフレーム本体の箱（0.75ブロック幅）より0.25ブロック分（左右合計で外周1/8ブロックずつ）広く描画され、2x2等の複数スロットでも同様にフレーム本体の外側へはみ出していた。`baseCellWidth`/`baseCellHeight`を`(halfWidth * 2.0F) / columns()`（フレーム本体自体の実際の幅を分割する式）に修正し、すべての内容レイヤーがフレーム本体の箱の内側にきっちり収まるようにした。クリック判定（当たり判定）は元々`getWidth()`/`getHeight()`/`calculateBoundingBox()`側の別計算式で正しく12x12相当になっていたため今回のバグの影響を受けておらず、見た目のみのズレだった。
+  - **1x2/2x1等、複数スロットのGUIで区切り罫線が表示されないバグ**: `gui/main_gui_*_placeholder.png`（ユーザー提供の各`FrameSize`のグリッド区切り線リファレンス画像）は元々コード側でGUIのピクセル座標を逆算するための「測定用ガイド画像」としてのみ使われており、実際にゲーム内へ描画される罫線ではなかった。`FrameSize`に`hasHorizontalDivider()`/`hasVerticalDivider(int row)`（`1and2`/`2and1`の全幅スロット側では罫線を出さない、等のレイアウトルールを判定）を追加し、`MultiItemFrameScreen#renderBg()`に`drawGridDividers()`を新設して、設定ビューポート内の実際のグリッド境界（`MultiItemFrameMenu`の`GRID_ORIGIN_*`/`CELL_*`定数を流用、罫線色はプレースホルダー画像からサンプリングしたRGB(135,135,135)を使用）に1px罫線を描画するようにした。
+  - **画像アセット更新時、次回コンパイルへの反映確認**: `base.png`（GUI背景パネル用に用意されていたが、現在は`renderBg()`内の`fill()`ベース実装に置き換え済みで未参照）に対するユーザーの直近の更新はコード側で使われていないため見た目に影響しない旨を確認。それ以外の画像アセット（`entity/`・`gui/`配下）はGradleの`processResources`タスクがコンテンツ変更を検知して毎回正しく取り込むこと（今回のビルドで`UP-TO-DATE`にならず再実行されたことで確認済み）を確認、追加対応は不要と判断。
+- [x] **AE2 Memory Card / Mekanism Configuration Cardでの設定コピー＆ペーストで、表示アイテム情報がペーストできないバグを修正**: `copySettings()`/`pasteSettings()`は当初の設計で「背景表示・ハイライトモード・ハイライト色のみを対象とし、表示アイテムは除外する」仕様になっていた（クラスdocコメントにも明記）が、実際の運用ではユーザーが表示アイテムごとコピー＆ペーストしたいという要望であることが判明。両メソッドを拡張し、各スロットの表示アイテム（ゴーストアイテム、`getItem(i)`/`setItem(i, stack)`）も`addAdditionalSaveData`/`readAdditionalSaveData`と同じ手法（Forge/1.20.1: `ItemStack#save(CompoundTag)`/`ItemStack.of(CompoundTag)`、NeoForge/1.21.1: `ItemStack#save(RegistryAccess)`/`ItemStack.parse(RegistryAccess, CompoundTag)`、データコンポーネントAPIの差異に対応）でタグへ含めるように変更（forge/neoforge双方）。スロット数不一致時の対応（コピー元・ペースト先で小さい方の件数までしか書き込まない）は既存のロジックをそのまま流用。
+- [x] **実機フィードバックに基づく追加4件の修正**（forge/neoforge双方）:
+  - **アイテムのプレビュー枠が18x18アセットに対して16x16のまま描画されていたバグ**: ユーザーが`item_slot_background.png`を（ハイライトモード/色ボタンと同じ）18x18アセットへ更新済みだったが、`MultiItemFrameScreen#renderBg()`側の`blit`呼び出しは旧仕様のまま16x16固定（送り先・ソース領域とも）で描画していたため、アイテムスロットだけボタン列より一回り小さく表示されていた。`ITEM_SLOT_BG_SIZE = 18`を新設し、バニラのインベントリスロットと同じ慣例（16x16アイコンを18x18背景の中央に来るよう1px内側にオフセットして描画）で`itemSlot.x - 1, itemSlot.y - 1`起点・18x18サイズで描画するよう修正。
+  - **GUIに意図しない直角の黒枠が表示されるバグ（`main_gui_background.png`の角の丸みと矛盾）**: 従来の`drawBasePanel()`は、透過している設定ビューポート部分の裏地として、パネル全体（176x166、四隅が丸められたアートワーク）と同じ大きさの完全な矩形（直角の黒縁＋ハイライト＋シャドウ＋グレー塗り）を先に敷いていたため、アートワーク自体の丸角からこの矩形の直角部分がはみ出して見えていた。実際に透過しているのは設定ビューポート部分（ピクセル計測: パネル内`(7,8)`〜`(168,78)`、`main_gui_background.png`自身の枠線・丸角はアートワークにすでに焼き込まれている）だけなので、`drawBasePanel()`を廃止し、この透過穴のみを対象範囲とする単純な`fill()`（`VIEWPORT_LEFT/TOP/WIDTH/HEIGHT`定数）に置き換え、パネル外周の丸角を覆わないようにした。
+  - **GUIの背景部分と設定エリア（`main_gui_xxxx_placeholder.png`相当）とで背景色が微妙に異なって見えるバグ**: 旧`BASE_FILL_COLOR`（`0xFFBEBEBE`=RGB(190,190,190)、プログラム側で決め打ちしていた値）が、実際の`main_gui_background.png`の枠・ハイライト部分やプレースホルダー参照画像の背景色（ピクセルサンプリングで確認: RGB(198,198,198)）と一致していなかったことが原因。上記のビューポート穴埋めの塗り色を`0xFFC6C6C6`（198,198,198、アセットから直接サンプリングした値）に統一し、継ぎ目が見えないようにした。
+  - **側面から見たときにレイヤー間に隙間があり、ガタついて見えるバグ**: 前回のレイヤー浮き修正では背景/ハイライト/アイテムの各レイヤーを`LAYER_STEP`（0.004ブロック）ずつ段階的にフレーム背面よりさらに奥へオフセットしていたが、これは実際の3D空間上の隙間であるため、真横に近い角度から見ると各レイヤーが宙に浮いた別々の板のように見えてしまっていた。全レイヤーの描画に使う`RenderType.entityCutoutNoCull`はLEQUALの深度テストを使うため、同一Z座標（フレーム背面と全く同じ`-HALF_THICKNESS`）に描画順（背景→ハイライト→アイテム）通りに重ね描きしても、隙間もチラつき（z-fighting）も発生しないと考えて`LAYER_STEP`によるオフセットを完全に撤廃したが、下記の通りこの理論は誤りだった。
+- [x] ~~上記の「同一Z座標に重ね描き」による修正~~ — 実機再テストで新たな不具合が発生（下記参照）。詳細は次項を参照。
+- [x] **`LAYER_STEP`撤廃で発生したZファイティング（ジャギジャギしたノイズ状の描画）を、`RenderType.entityCutoutNoCullZOffset`を用いて修正、およびアイテムスロットとボタンの1〜2px縦位置ズレを修正**（forge/neoforge双方）:
+  - **背景レイヤーにジャギジャギしたノイズ模様が出るバグ**: 完全に同一のワールド座標Zへ描画した2枚以上のクアッドは、理論上はLEQUALの深度テストで後から描画した方が単純に上書きされるはずだが、実際には描画コールごとに個別の行列変換を経由するため、補間された面全体でごくわずかな浮動小数点誤差が生じ、フラグメント単位で不規則にどちらが手前になるか揺れてしまう（＝真のZファイティング）ことが実機での再現で判明。デコンパイルした`RenderType`のソースから、この用途向けにバニラが用意している`entityCutoutNoCullZOffset(ResourceLocation)`（ブロック破壊オーバーレイなどと同様、`VIEW_OFFSET_Z_LAYERING`というビュー空間上の深度値のみを僅かにずらすレンダーステートを使い、頂点座標自体は一切動かさない仕組み）を採用。`MultiItemFrameRenderer#renderQuad`の両オーバーロードに`boolean decal`引数を追加し、`true`のとき`entityCutoutNoCullZOffset`、`false`のとき従来の`entityCutoutNoCull`を使うRenderTypeを選択できるようにした。フレーム本体の箱（`renderBox`の前面/背面、`renderSide`の側面帯）は従来通り`decal=false`のまま据え置き、背景クアッド（`render()`内）とハイライト系クアッド（`renderHighlightFrameBorder`の枠4本、および塗りつぶし版）は`decal=true`に変更。これにより、フレーム背面と完全に同一座標のまま、内容レイヤーだけがビュー空間でわずかに手前へ寄せられ、実際の3D的な隙間を作らずにZファイティングを解消できた。アイテムの描画（`itemRenderer.renderStatic()`）はバニラAPI側の都合で独自RenderTypeを指定できないため、代わりに`ITEM_DEPTH_EPSILON = 0.0005F`（撤廃前の`LAYER_STEP=0.004`の1/8程度、視覚的な隙間としては認識できない極小値）というごく僅かな実オフセットを維持し、背景/ハイライトのZオフセットに対して確実に手前へ描画されるようにした。
+  - **アイテムスロットの上下位置がボタンと1〜2pxずれるバグ**: `MultiItemFrameScreen#getModeButtonArea()`のボタンY座標が`itemSlot.y`をそのまま使っていたが、アイテムスロット背景は前回の18x18化修正で`itemSlot.y - ITEM_SLOT_BG_INSET`（1px上）を起点に描画するよう変更済みだったため、同じ18x18サイズにもかかわらずボタンの中心がアイテムスロット背景/アイコンの中心より1px下にずれていた。ボタンのY座標にも同じ`ITEM_SLOT_BG_INSET`を適用し、アイテムアイコン・アイテムスロット背景・両ボタンの縦方向の中心が揃うよう修正。
+- [x] ~~上記の`entityCutoutNoCullZOffset`導入による修正~~ — 実機再テストでもZファイティングが改善せず。原因を再分析した結果、下記の見落としが判明。
+- [x] **`decal`引数によるZオフセット量が全ての内容レイヤーで完全に同一であるため、背景とハイライトなど内容レイヤー同士が依然として完全に同一座標のまま残っており、そこでZファイティングが再発していたバグを修正**（forge/neoforge双方）: 前回の`decal`引数によるZオフセットは「フレーム本体の背面」と「内容レイヤー全体」を区別するだけで、内容レイヤー同士（背景 vs. FILLモードのハイライト塗りつぶし等）の間は区別していなかった。同じセルに背景とハイライトが重なる場合、両者とも同じ`decal=true`（同じビュー空間オフセット量）かつ同じワールド座標Zで描画されるため、結局まったく同じ深度のまま重なっており、そこでZファイティングが再発していた。新設した`CONTENT_LAYER_STEP = 0.0005F`（`ITEM_DEPTH_EPSILON`と同程度の、以前の`LAYER_STEP=0.004`よりずっと小さい極小の実ワールド座標オフセット）を、背景→ハイライト→アイテムの各内容サブレイヤー間に段階的に適用（`highlightDepth = depth - CONTENT_LAYER_STEP`、アイテムはさらにそこから`ITEM_DEPTH_EPSILON`分手前）するように変更。これにより、`decal`によるビュー空間オフセット（内容レイヤー全体 vs. フレーム本体の区別）と、`CONTENT_LAYER_STEP`による実ワールド座標オフセット（内容サブレイヤー同士の区別）の二段構えでZファイティングの原因を除去した。合計オフセット量は最大でも`CONTENT_LAYER_STEP × 2 + ITEM_DEPTH_EPSILON`（約0.0015ブロック）程度に収まり、以前`LAYER_STEP=0.004`（3層で最大0.012ブロック）が引き起こした「浮いて見える」問題が再発するレベルには遠く及ばない。ビルド・デプロイ済み、実機再検証待ち。
+- [x] JEI連携を実アイテムスロット向けに拡張（Ch.5の染料専用ゴーストハンドラを一般化し、任意アイテムのドラッグ&ドロップでアイテムスロットへの表示アイテム設定にも対応。詳細はCh.5参照）。
+- [x] ~~上記の`getDisplayName()`オーバーライドによるJadeツールチップ名修正~~ — 実機再テストで改善せず。原因を再調査した結果、下記の見落としが判明。
+- [x] **JadeのようなWAILA系MODが実際に読んでいるのは`Entity#getDisplayName()`ではなく`Entity#getName()`だったため、上記の修正が効いていなかったバグを修正**（forge/neoforge双方）: 両メソッドはシグネチャが似ているが別物で、`getDisplayName()`はチャット中のクリック可能な名前表示（`MenuProvider#getDisplayName()`＝GUIタイトルとも共有）用、`getName()`はバニラのデフォルト実装が`EntityType#getDescription()`（サイズ非依存の汎用翻訳キー）にフォールバックする、より汎用的な「このエンティティの名前」取得用メソッドで、Jadeを含む多くのMODはこちらを読む。`getDisplayName()`だけをオーバーライドしていたため、GUIタイトルは正しくサイズ付き名称になっていた一方、Jadeのツールチップは相変わらず`getType().getDescription()`由来の汎用名（"Multi Item Frame"）のままだった。`getName()`も同様に`getFrameItemStack().getHoverName()`を返すようオーバーライドし、両メソッドが同じサイズ付き名称を返すよう修正。ビルド・デプロイ済み、実機再検証待ち。
+- [x] 言語ファイル（`en_us.json`）は既存のforge/neoforge双方の`assets/multiitemframe/lang/en_us.json`に集約（Ch.2時点で作成済みだったため、Ch.5で追加した`config_card_*`キーの翻訳文言を今回追記）。`ja_jp.json`は未着手（必要になれば別途）。
+- [x] レシピJSON・タグ定義はCh.3で完了済み（ルートテーブルは対象外、右クリックで取得するため不要）。
+- [x] **実機フィードバック「クラフトレシピが登録されていないように見える」を受けて再確認、Forge側のレシピが一切読み込まれていなかったバグを修正**: `forge/src/main/resources/data/multiitemframe/recipe/`（単数形フォルダ名）にレシピJSONが置かれていたが、データパックのフォルダ名は`recipes`（複数形）から`recipe`（単数形）へ改名されたのはMinecraft 1.21以降のパックフォーマットからであり、Forgeのターゲットである1.20.1では旧来の複数形`recipes`のままでなければ読み込まれない（NeoForge 1.21.1側は単数形`recipe`で正しい）。Forge側のみ`data/multiitemframe/recipe/` → `data/multiitemframe/recipes/`にリネームし、`tools/generate_recipes.py`の出力先定数もローダーごとに正しいフォルダ名を出力するよう修正。ビルド後、jar内に`data/multiitemframe/recipes/*.json`として同梱されていることを確認済み。
+- [x] **ユーザーがForge側レシピJSONを手動追加・リネームした内容を`tools/generate_recipes.py`に反映し、NeoForge側へも同期**: `frame_1x2_from_2x1`/`frame_2x1_from_1x2`を`frame_1x2_vice_versa`/`frame_2x1_vice_versa`にリネーム（グロー版の相互変換レシピも同様）、`glow_frame_1x1`のレシピを`frame_1x1`+`glowstone_dust`経由から`minecraft:item_frame`+`minecraft:redstone`+`minecraft:glowstone_dust`の直接クラフトに変更、非グロー版の完成フレーム+`glowstone_dust`でグロー版へアップグレードする`glow_frame_{1x1,1x2,2x1,1and2,2and1,2x2}_from_nonglow`を全サイズ分新設（バニラのItem Frame→Glow Item Frameのアップグレード動線を踏襲）。スクリプト実行でForge/NeoForge双方（各30レシピ）を再生成し、Forge側は改行コード差分のみでユーザーの手動編集内容と完全一致することを確認、NeoForge側は旧名（`_from_2x1`/`_from_1x2`）の残存ファイルを削除した上で新規スキーマ（1.21+形式）で追従させた。
+- 生成用ツール: `tools/generate_placeholder_assets.py`（再実行で全プレースホルダーを再生成可能。本物のアートに差し替える際は、上記の着色前提テクスチャの仕組みを踏襲すること）。
 
 ## 5. 任意依存MODとの連携
 
-- [ ] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト
-- [ ] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト
-- [ ] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合
-- [ ] **Jade**: 上記0章の方針決定後、必要であればWailaプロバイダを実装
+- [x] **Applied Energistics 2**: `ae2:memory_card`によるフレーム設定のコピー＆ペースト（`Ae2MemoryCardCompat`、forge/neoforge双方）
+- [x] **Mekanism**: `mekanism:configuration_card`によるフレーム設定のコピー＆ペースト（`MekanismConfigCardCompat`、forge/neoforge双方）
+- [x] **JEI**: GUI内でJEIからアイテムを選択・ドラッグして設定可能にする統合（実アイテムスロットへのドラッグはJEI標準機能。染料ドラッグによる色設定は`IGhostIngredientHandler`で追加実装）
+- [x] **Fluid / Mekanism Chemical / Energy(FE)のスロット表示対応**(forge/neoforge両方): GUIのアイテムスロット上で、満たされたコンテナアイテム(バケツ、Mekanismのタンク、電池など)をクリック(またはJEIからアイテムドラッグ)すると、コンテナ自体ではなく中身の種類(Fluid/Chemical/Energy)を表示するようにした。数量は表示せず種類のみ(既存のアイテム表示と同じく所持数1固定・見た目専用)。新規カスタムアイコン素材は追加せず、ゲームが元々ロード済みのアトラススプライト+ティント(JEIの表示と同じもの)をそのまま流用して描画する(`ContentIconResolver`)。
+  - 判定順序: Fluid(vanilla Forge/NeoForgeのFluidHandlerItemケーパビリティ、MOD不問) → Mekanism Gas/Infusion/Pigment/Slurry(Forge、`mekanism`導入時のみ) / Mekanism統合Chemical(NeoForge、10.6+の統合Chemical APIに追従。`mekanism`導入時のみ) → 汎用FEエネルギー(vanilla Forge/NeoForgeのEnergyStorageケーパビリティ、MOD不問)。いずれにも該当しなければ従来通りアイテム自体を表示。
+  - Mekanismの`api`限定依存(`mekanism.common`非公開)のため、ケーパビリティトークンは`CapabilityManager.get(new CapabilityToken<>(){})`(Forge)/`ItemCapability.createVoid(...)`(NeoForge)で独自に取得し、Mekanism内部の実装と同一インスタンスに解決させている。
+  - エンティティの同期データに`ContentKind`/`ContentId`を追加(`ITEM`のときのみ既存の`ItemStack`を使用)、NBT保存・設定コピペ(AE2 Memory Card/Mekanism Configuration Card)・JEIドラッグにもすべて反映。旧セーブとの後方互換あり(`ContentKind`欠落時は`ITEM`扱い)。
+- [x] **JEIからの生Fluid/Chemicalインジェスト直接ドラッグ対応**(forge/neoforge両方): 上記のコンテナ経由ドラッグに加え、JEIのインジェストリスト上のFluid/Mekanism Chemical(Forge: Gas/Infusion/Pigment/Slurry)をアイテムに紐付けず直接アイテムスロットへドラッグ&ドロップした場合にも表示種別を設定できるようにした。バケツなどのコンテナアイテムをドラッグしながら右クリックで中身を切り替える操作が困難/実質不可能なため追加。
+  - `IGhostIngredientHandler#getTargetsTyped`で`ITypedIngredient#getIngredient()`(型消去された生インジェスト値)を追加で検査し、`FluidStack`(Forge: `net.minecraftforge.fluids`、NeoForge: `net.neoforged.neoforge.fluids`)および`ChemicalStack`(Forge: `GasStack`/`InfusionStack`/`PigmentStack`/`SlurryStack`のいずれか、NeoForge: 統合`ChemicalStack`)を判定してアイテムスロット領域をドロップ対象に追加。
+  - ボタンクリック機構(`clickMenuButton`)は`int`しか運べないため、既存の`DIRECT_ITEM_BASE`と同じ手法で新規`DIRECT_CONTENT_BASE`ボタンID範囲(`(slot, kind, registry id)`をエンコード)を追加。Fluidはvanillaレジストリ(`BuiltInRegistries.FLUID`)のint idをそのまま利用。Mekanism ChemicalはForge側`IForgeRegistry`が素のインターフェースではint id取得手段を公開していないため、実体である`net.minecraftforge.registries.ForgeRegistry`へダウンキャストして`getID`/`getValue(int)`を利用(`MekanismChemicalCompat`に追加)。NeoForge側は統合Chemicalがvanilla `Registry`実装のため`MekanismAPI.CHEMICAL_REGISTRY`の`getId`/`byId`をそのまま利用。
+- [x] **バグ修正: GUIを再度開くとFluid/Chemical表示が消える**(forge/neoforge両方): GUIを開くたびに、vanillaのコンテナ内容同期(`ClientboundContainerSetContentPacket`→`AbstractContainerMenu#setAll`→`Slot#set`)がクライアント側の`Container#setItem`を空`ItemStack`付きで呼び出す。これは本来「今と同じ内容を再送しているだけ」の無害な同期のはずが、`MultiItemFrameEntity#setItem`が呼ばれるたびに無条件で`ContentKind`/`ContentId`を`ITEM`/空にリセットしていたため、Fluid/Chemical/Energy表示(表示アイテムは仕様上常に空)がクライアント側の見た目だけ`ITEM`扱いに巻き戻されていた(サーバー側の実データは無事だが、値が変化しないため再同期されず、GUIを開き直すたびに再現していた)。`setItem`は「渡された内容がすでに空 かつ 現在の内容も空」の場合は何もしない(＝実質的な変更が無いvanilla同期はスルーする)よう修正し、明示的な「クリア」操作(中クリック・`removeItem`)は新設の`clearDisplay`から直接呼ぶことで、この無視ガードをすり抜けて確実にクリアできるようにした。
+- [x] **Jade連携: フレームの中身(Item/Fluid/Chemical/Energy)をツールチップに表示**(forge/neoforge両方、新規機能): `Entity#getName()`/`getDisplayName()`のオーバーライドはフレーム自体のサイズ別名前のみを返し、各スロットの表示内容をJadeへ伝えるプラグインはこれまで一切存在しなかった(README「Optional Dependencies」からもJadeの記載は削除済みで、以前は非対応と決定していた)。今回改めてJade連携が必要という要望を受け、`IWailaPlugin`/`IEntityComponentProvider`による独自プラグイン(`compat.jade.MultiItemFrameJadePlugin`)を新規実装した。個数は表示しない(フレームは実インベントリを持たないゴースト表示のため)。表示内容(`ContentKind`/`ContentId`/`ItemStack`)は元々レンダリング用に同期済みのエンティティデータなので、`IServerDataProvider`は不要でクライアント専用実装。Jadeは`compileOnly`のオプション依存として`maven.modrinth:jade`を追加(バージョンは既存の`ae2_version_forge`と同様、Modrinthのバージョン番号文字列に含まれる`+`がGradle座標として不安定なためバージョンIDを使用)。
+  - **レイアウト再設計(実機スクリーンショットのフィードバックを受けて)**: 初回実装は「アイテム名, Fluid名, Chemical名」のようなカンマ区切り1行を追加するだけだったため、`MultiItemFrameEntity`が`Container`実装であることによりJade組み込みの`EntityItemStorageProvider`(アイテムのみ、アイコン+"1x 名前"の行を自動追加)と二重表示になり、かつFluid/Chemicalには組み込み側のアイコン行が存在しない(実`ItemStack`が常に空のため組み込み側から見えない)という非対称なレイアウトになっていた。要望により、組み込みのアイテム行と同じ「アイコン+名前」を全種別(Item/Fluid/Chemical/Energy)で統一し、スロットごとに1行ずつ並べる形に再設計。`tooltip.remove(Identifiers.UNIVERSAL_ITEM_STORAGE)`(NeoForge側は`JadeIds.UNIVERSAL_ITEM_STORAGE`、Jade 15.10.6でクラス名変更)で組み込み行を除去し(`getDefaultPriority()`を`TooltipPosition.TAIL`にして組み込みプロバイダの後に実行されるようにする、Mekanism自身のJadeプラグインと同じ手法)、代わりに独自の統一リストを追加する。アイテムは`IElementHelper#item(ItemStack)`(個数表記なし)+名前、Fluid/Chemical/Energyは新設の`SpriteElement`(`Element`のサブクラス。既存の`ContentIconResolver`が解決するアトラススプライト+ティントを`GuiGraphics#blit`で描画、GUI/レンダラーと同じ見た目)+名前、をそれぞれ1行にまとめる。カンマ区切りの要約行は不要になったため削除。
 
-各連携は「導入されている場合のみ有効化」される設計（`compileOnly`+実行時判定、またはローダー別の統合モジュール分離）とする。
+各連携は「導入されている場合のみ有効化」される設計(`compileOnly`+`ModList.get().isLoaded(...)`実行時判定、`compat`パッケージにローダー別実装)で対応済み。
+
+AE2/Mekanism連携の実装メモ:
+- AE2はForge/1.20.1（15.x系）とNeoForge/1.21.1（19.x系）で`IMemoryCard`のストレージAPIが非互換（旧: `setMemoryCardContents`による自由なCompoundTag保存、新: `IUpgradeableObject`/`IConfigurableObject`/`IPriorityHost`/`IConfigInvHost`のみを対象とするDataComponentベースの固定スキーマで、任意NBT保存の手段が廃止されている）。本MODはEntityであり、いずれのAPIにも自然には乗らないため、`IMemoryCard`は型判定と`notifyUser`によるメッセージ表示のみに使い、実データは独自の名前空間タグキー（`multiitemframe:frame_settings`）でカードのItemStackに直接保存する方式に統一した（両ローダーで完全に同一の挙動）。
+- Mekanismの`IConfigCardAccess`（Configuration Card連携用capability）は`BlockEntity`のみを対象とする設計（`ItemConfigurationCard.useOn`経由のcapability lookup）で、Entityである本MODには発火しないため、Mekanism公式のディスパッチ機構は使わず、アイテムの登録名（`mekanism:configuration_card`）による直接判定と、Mekanism本体のカードNBT構造（`mek_data`/`data`/`data_name`。Forge/1.20.1は`mekanism.api.NBTConstants`、NeoForge/1.21.1は`mekanism.api.SerializationConstants`とキー名が変わっている）を模倣した独自書き込みで対応。
+- NeoForge/1.21.1側はvanillaのData Components移行に伴い、ItemStackへの自由なNBT保存は`DataComponents.CUSTOM_DATA`（`CustomData.of(tag)`/`copyTag()`）経由で行う。
+- チャットメッセージ（保存/読込/不正カード）は`gui.multiitemframe.config_card_saved`等の翻訳キーを使用しており、対応する翻訳文言はCh.4で両ローダーの`en_us.json`に追記済み。
+
+JEI連携の実装メモ:
+- `mezz.jei:jei-*-forge-api`/`jei-*-neoforge-api`はローダー固有の薄いシムのみを含み、`IModPlugin`/`IGhostIngredientHandler`等の本体APIは別アーティファクト`mezz.jei:jei-*-common-api`にある。両`build.gradle`に`compileOnly`を追加した。
+- アイテムスロットはゴーストスロット化（Ch.2参照）に伴い実アイテムを保持しないため、JEI標準のスロットドラッグ&ドロップは対象外。代わりに`IGhostIngredientHandler<MultiItemFrameScreen>`（`compat.jei.MultiItemFrameJeiPlugin`、`@JeiPlugin`で自動検出）を汎用アイテム対応に拡張し、任意のアイテムをアイテムスロットへドラッグすると表示アイテムを直接設定（`DIRECT_ITEM_BASE`ボタン範囲）、染料の場合はさらに色トグルボタンへのドラッグにも対応（`DIRECT_COLOR_BASE`ボタン範囲）するようにした。
 
 ## 6. ドキュメント・リリース関連
 
-- [ ] `CHANGELOG.md`を新規作成（`release.yml`がバージョンごとのセクションを読み取る前提のフォーマットに合わせる）
-- [ ] `docs/user-test-checklist-template.md`を新規作成（`copilot-instructions.md`のRelease Flowが参照するテンプレート）
-- [ ] LICENSEファイルの要否を確認・追加
+- [x] `CHANGELOG.md`を新規作成（`release.yml`がバージョンごとのセクションを読み取る前提のフォーマットに合わせる）
+- [x] `docs/user-test-checklist-template.md`を新規作成（`copilot-instructions.md`のRelease Flowが参照するテンプレート）
+- [x] LICENSEファイルの要否を確認・追加（Ch.1で`LGPL-3.0`のLICENSEを前倒しで作成済み。追加対応不要）
 
 ## 7. テスト環境
 
-- [ ] `D:\curseforge\minecraft\Instances\MultiIF-Forge 1.20.1` インスタンスの存在確認・作成
-- [ ] `D:\curseforge\minecraft\Instances\MultiIF-NeoForge 1.21.1` インスタンスの存在確認・作成
-- [ ] 上記インスタンスへの依存MOD（AE2, Mekanism, JEI, Jade）導入・動作確認環境の準備
+- [x] `D:\curseforge\minecraft\Instances\MultiIF-Forge 1.20.1` インスタンスの存在確認・作成（既存を確認済み）
+- [x] `D:\curseforge\minecraft\Instances\MultiIF-NeoForge 1.21.1` インスタンスの存在確認・作成（既存を確認済み）
+- [x] 上記インスタンスへの依存MOD（AE2, Mekanism, JEI, Jade）導入・動作確認環境の準備（Forge側はAE2/Mekanism/JEI/Jade導入済み、NeoForge側はAE2/Mekanism/JEI導入済み。Jadeはこのプロジェクトの依存関係ではないため必須ではない）。両インスタンスの`mods`フォルダに最新ビルドの`multiitemframe-*.jar`を配置済み。実際の起動・手動テストはユーザー側で実施。
 
 ## 8. CI/CD
 
 - [x] `build.yml` / `release.yml`のアーティファクト名・パスをMOD名に合わせて修正（0章参照、対応済み）
-- [ ] `gradlew build --console=plain`がローカルで通ることを確認
+- [x] `gradlew build --console=plain`がローカルで通ることを確認（このセッションで複数回確認済み。直近: Ch.5完了時点でBUILD SUCCESSFUL）
 - [ ] CurseForge / Modrinthのプロジェクト作成（`CURSEFORGE_PROJECT_ID` / `MODRINTH_PROJECT_ID`等のリポジトリ変数・シークレット設定）
