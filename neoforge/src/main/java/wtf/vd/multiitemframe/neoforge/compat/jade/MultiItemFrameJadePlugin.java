@@ -57,6 +57,8 @@ import wtf.vd.multiitemframe.frame.DisplayContentKind;
 public final class MultiItemFrameJadePlugin implements IWailaPlugin {
 
     private static final ResourceLocation PROVIDER_UID = ResourceLocation.fromNamespaceAndPath(MultiItemFrame.MOD_ID, "content");
+    /** Gap between the row's icon and its name text, in px (~half a space's width). */
+    private static final int ICON_TEXT_GAP = 2;
 
     @Override
     public void register(IWailaCommonRegistration registration) {
@@ -93,7 +95,8 @@ public final class MultiItemFrameJadePlugin implements IWailaPlugin {
             String id = frame.getContentId(slot);
             if (kind == DisplayContentKind.ITEM) {
                 ItemStack stack = frame.getItem(slot);
-                return stack.isEmpty() ? null : List.of(helper.smallItem(stack), helper.text(stack.getHoverName()));
+                return stack.isEmpty() ? null
+                        : List.of(helper.smallItem(stack), helper.spacer(ICON_TEXT_GAP, 0), helper.text(stack.getHoverName()));
             }
             Component name = describeName(kind, id);
             if (name == null) {
@@ -103,7 +106,8 @@ public final class MultiItemFrameJadePlugin implements IWailaPlugin {
             if (sprite == null) {
                 return List.of(helper.text(name));
             }
-            return List.of(new SpriteElement(sprite, ContentIconResolver.getTintARGB(kind, id)), helper.text(name));
+            return List.of(new SpriteElement(sprite, ContentIconResolver.getTintARGB(kind, id)),
+                    helper.spacer(ICON_TEXT_GAP, 0), helper.text(name));
         }
 
         private static Component describeName(DisplayContentKind kind, String id) {
