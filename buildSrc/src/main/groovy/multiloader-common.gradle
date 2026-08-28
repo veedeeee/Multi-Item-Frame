@@ -106,6 +106,16 @@ jar {
 }
 
 processResources {
+    // Mod logo shown on the Mods screen (referenced by `logoFile` in mods.toml/neoforge.mods.toml).
+    // Applied per-project (forge/neoforge/common) rather than only in forge/neoforge's own
+    // processResources: forge/neoforge's `from(configurations.commonResources)` (see
+    // multiloader-loader.gradle) points at common's *raw* `src/main/resources` source directory,
+    // not common's processed build output, so a copy step placed only in common's processResources
+    // would never actually reach the forge/neoforge jars.
+    from(rootProject.file('images/mod_logo.png')) {
+        rename { "${mod_id}.png" }
+    }
+
     var expandProps = ['version'                      : version,
                        'group'                        : project.group, //Else we target the task's group.
                        'minecraft_version'            : effectiveMinecraftVersion,
