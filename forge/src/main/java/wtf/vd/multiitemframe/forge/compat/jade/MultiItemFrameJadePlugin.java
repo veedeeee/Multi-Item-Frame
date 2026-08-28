@@ -93,7 +93,7 @@ public final class MultiItemFrameJadePlugin implements IWailaPlugin {
             String id = frame.getContentId(slot);
             if (kind == DisplayContentKind.ITEM) {
                 ItemStack stack = frame.getItem(slot);
-                return stack.isEmpty() ? null : List.of(helper.item(stack), helper.text(stack.getHoverName()));
+                return stack.isEmpty() ? null : List.of(helper.smallItem(stack), helper.text(stack.getHoverName()));
             }
             Component name = describeName(kind, id);
             if (name == null) {
@@ -147,22 +147,24 @@ public final class MultiItemFrameJadePlugin implements IWailaPlugin {
      *  reused here since Jade's own {@code IElementHelper} has no generic "arbitrary atlas
      *  sprite" icon factory (only whole {@code ItemStack}s/vanilla fluids - see
      *  {@code mekanism.common.integration.lookingat.jade.JadeTooltipRenderer} for the reference
-     *  pattern this follows). */
+     *  pattern this follows). Sized to the tooltip's text line height (mirroring
+     *  {@code IElementHelper#smallItem}, which shrinks its item icon the same way) so the icon
+     *  lines up with the name text instead of towering over it at a full 16px. */
     private static final class SpriteElement extends Element {
-
-        private static final Vec2 SIZE = new Vec2(16, 16);
 
         private final TextureAtlasSprite sprite;
         private final int tintARGB;
+        private final int size;
 
         SpriteElement(TextureAtlasSprite sprite, int tintARGB) {
             this.sprite = sprite;
             this.tintARGB = tintARGB;
+            this.size = Math.max(1, net.minecraft.client.Minecraft.getInstance().font.lineHeight - 1);
         }
 
         @Override
         public Vec2 getSize() {
-            return SIZE;
+            return new Vec2(this.size, this.size);
         }
 
         @Override
@@ -171,7 +173,7 @@ public final class MultiItemFrameJadePlugin implements IWailaPlugin {
             float r = ((this.tintARGB >> 16) & 0xFF) / 255.0F;
             float g = ((this.tintARGB >> 8) & 0xFF) / 255.0F;
             float b = (this.tintARGB & 0xFF) / 255.0F;
-            guiGraphics.blit((int) x, (int) y, 0, 16, 16, this.sprite, r, g, b, a);
+            guiGraphics.blit((int) x, (int) y, 0, this.size, this.size, this.sprite, r, g, b, a);
         }
     }
 }
